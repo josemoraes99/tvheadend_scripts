@@ -15,7 +15,7 @@ import uuid
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
-__version__             = "0.1.0"
+__version__             = "0.1.1"
 
 CONFIG = {
     'updateurl': "https://raw.githubusercontent.com/josemoraes99/tvheadend_scripts/master/tvheadend_configure_epg.py",
@@ -389,7 +389,7 @@ def processa_alteracoes(conf, lista):
                             msg = bcolors.OKGREEN + "found 2 - " + epg_item + bcolors.ENDC
                             alterar_epg_item(conf, l['uuid'], uuid_item)
 
-            print("%-*s %-*s %s" % (3, l['number'], 25, l['name'], msg))
+            print("%-*s %-*s %s" % (3, l['number'], 25, l['name'], msg)).encode('utf-8')
     logging.info("Concluido")
 
 
