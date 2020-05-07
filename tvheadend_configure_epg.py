@@ -4,7 +4,6 @@ import argparse
 import socket
 import sys
 import logging
-# from contextlib import closing
 import urllib2
 import json
 import time
