@@ -2,6 +2,9 @@
 
 Script para configuração do epg no tvheadend no pixel
 
+* Verifica se source "EPG Brasil Net" está instalado e ativo.
+* Busca por canais em que não o epg não está configurado. Os que já estão configurados, o script não altera.
+
 ## Instalação
 
 Entrar no terminal do e2/tvh e fazer o download do script:
