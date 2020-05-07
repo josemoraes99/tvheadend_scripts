@@ -251,7 +251,6 @@ def get_external_list(conf, lista):
     picons_list = list(dict.fromkeys(lista))
     data = {'src': 'e2', 'node': uuid_one, 'listChannel': picons_list}
     data = json.dumps(data)
-    # print (data)
 
     req = urllib2.Request(conf['urlPicons'], data, {'Content-Type': 'application/json'})
     fil = urllib2.urlopen(req)
@@ -267,7 +266,6 @@ def alterar_epg_item(conf, idCanal, idEpg):
     """
     req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + idCanal + '","epggrab":["' + idEpg + '"]}')
     urllib2.urlopen(req)
-    # tvhreq = urllib.urlopen( "http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + idCanal + '","epggrab":["' + idEpg + '"]}' )
 
 
 def configure_epg_grabber(conf):
@@ -277,7 +275,6 @@ def configure_epg_grabber(conf):
     logging.info("Obtendo lista de epg grabbers")
     req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/module/list')
     tvhreq = urllib2.urlopen(req)
-    # tvhreq = urllib.urlopen( "http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/module/list' )
     data = json.load(tvhreq)
 
     uuid_str = ''
@@ -285,7 +282,6 @@ def configure_epg_grabber(conf):
 
     for l in data['entries']:
         if "EPG Brasil Net" in l['title']:
-            # print l
             uuid_str = l['uuid']
             name_str = l['title']
             break
@@ -294,12 +290,10 @@ def configure_epg_grabber(conf):
         logging.info("Habilitando %s", name_str)
         req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_str + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}')
         urllib2.urlopen(req)
-        # tvhreq = urllib.urlopen( "http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_str + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}' )
 
     logging.info("Executando 'Re-run internal epg Grabbers")
     req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/internal/rerun?rerun=1')
     urllib2.urlopen(req)
-    # tvhreq = urllib.urlopen( "http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/internal/rerun?rerun=1' )
     # wait
     time.sleep(5)
 
