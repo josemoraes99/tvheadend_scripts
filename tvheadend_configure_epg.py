@@ -11,6 +11,7 @@ import time
 import re
 import unicodedata
 import uuid
+import os
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
