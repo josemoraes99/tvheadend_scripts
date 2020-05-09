@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+__version__             = "0.2.0"
+
 import argparse
 import socket
 import sys
@@ -18,7 +20,6 @@ import commands
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
-__version__             = "0.2.0"
 
 CONFIG = {
     'devmode': False,
