@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 import argparse
 import socket
@@ -564,8 +564,8 @@ def main():
 
     if has_tvh:
         configure_epg_grabber(CONFIG)
-        # lista_canais = processa_lista_canais(CONFIG)
-        # processa_alteracoes(CONFIG, lista_canais)
+        lista_canais = processa_lista_canais(CONFIG)
+        processa_alteracoes(CONFIG, lista_canais)
 
 if __name__ == '__main__':
     main()
