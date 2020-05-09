@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 import argparse
 import socket
@@ -354,7 +354,6 @@ def configure_epg_grabber(conf):
 
             if overwrite_file:
 
-            # if not os.path.isfile(file_donwload_path):
                 logging.info("Download do arquivo %s e salvando em %s" % (file_donwload, file_donwload_path))
                 url = conf['scriptsurl'] + file_donwload
                 # url = conf['updateurl']
@@ -362,16 +361,8 @@ def configure_epg_grabber(conf):
                 with open( file_donwload_path, 'wb') as local_file:  
                     local_file.write(f.read())
 
-                
                 # verificar permissao necessaria
                 os.chmod(file_donwload_path, 0o0777)
-
-            # else:
-            #     print("arquivo ja existente")
-
-
-
-
 
         logging.info("Verificando se %stv_grab_br está no crontab" % conf['scriptspath'])
         if os.path.isfile(conf['crontabpath']):
