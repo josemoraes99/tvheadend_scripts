@@ -12,6 +12,7 @@ import re
 import unicodedata
 import uuid
 import os
+from subprocess import STDOUT, check_call
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -19,17 +20,25 @@ sys.setdefaultencoding('utf-8')
 __version__             = "0.1.1"
 
 CONFIG = {
+    'devmode': False,
     'updateurl': "https://raw.githubusercontent.com/josemoraes99/tvheadend_scripts/master/tvheadend_configure_epg.py",
+    'scriptsurl': "https://raw.githubusercontent.com/josemoraes99/tvheadend_scripts/master/",
     'urlPicons': "https://hk319yfwbl.execute-api.sa-east-1.amazonaws.com/prod",
     'tvheadendAddress': 'localhost',
     'tvheadendPort': '9981',
+    'scriptspath': '/usr/bin/',
+    'crontabpath': '/var/spool/cron/crontabs/root',
 }
 
 DEV_CONFIG = {
+    'devmode': True,
     'updateurl': CONFIG['updateurl'],
+    'scriptsurl': CONFIG['scriptsurl'],
     'urlPicons': CONFIG['urlPicons'],
     'tvheadendAddress': 'e2.lan',
     'tvheadendPort': '9981',
+    'scriptspath': 'tmp/',
+    'crontabpath': 'tmp/root',
 }
 
 class bcolors:
@@ -280,23 +289,172 @@ def configure_epg_grabber(conf):
     uuid_str = ''
     name_str = ''
 
-    for l in data['entries']:
-        if "EPG Brasil Net" in l['title']:
-            uuid_str = l['uuid']
-            name_str = l['title']
-            break
+    logging.info("Verificando grabbers ativados")
+    
+    grabbers_found=[]
 
-    if uuid_str != "":
-        logging.info("Habilitando %s", name_str)
-        req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_str + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}')
+    uuid_external_xml = False
+
+    for l in data['entries']:
+        # print(l['title'])
+        # print("http://%s:%sidnode/load?uuid=%s" % (conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
+        req1 = urllib2.Request("http://%s:%s/api/idnode/load?uuid=%s" % (conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
+        tvhreq1 = urllib2.urlopen(req1)
+        data1 = json.load(tvhreq1)
+        grabber_enabled = False
+        scrape_extra = False
+        scrape_onto_desc = False
+        use_category_not_genre = False
+        for t in data1['entries'][0]['params']:
+            if t['id'] == "enabled" and t['value'] == True:
+                grabber_enabled = True
+            if t['id'] == "scrape_extra" and t['value'] == True:
+                scrape_extra = True
+            if t['id'] == "scrape_onto_desc" and t['value'] == True:
+                scrape_onto_desc = True
+            if t['id'] == "use_category_not_genre" and t['value'] == True:
+                use_category_not_genre = True
+                # scrape_extra = t['scrape_extra']
+                # scrape_onto_desc = t['scrape_extra']
+                # use_category_not_genre = t['scrape_extra']
+                # print(data1['entries'][0]['text'])
+                # if not "PSIP: ATSC Grabber" in data1['entries'][0]['text'] and not "EIT: EPG Grabber" in data1['entries'][0]['text']:
+                #     grabbers_found.append({'name':data1['entries'][0]['text'], 
+                #                             'uuid':data1['entries'][0]['uuid'],
+                #                             'scrape_extra':t['scrape_extra'],
+                #                             'scrape_onto_desc':t['scrape_extra'],
+                #                             'use_category_not_genre':t['scrape_extra'],
+                #                             })
+
+        if data1['entries'][0]['text'] == "External: XMLTV":
+            uuid_external_xml = data1['entries'][0]['uuid']
+        # print(data1['entries'][0]['text'], grabber_enabled)
+        if grabber_enabled and not ("PSIP: ATSC Grabber" in data1['entries'][0]['text'] or "EIT: EPG Grabber" in data1['entries'][0]['text']):
+        # if grabber_enabled and not "PSIP: ATSC Grabber" in data1['entries'][0]['text']:
+            grabbers_found.append({'name':data1['entries'][0]['text'], 
+                                    'uuid': data1['entries'][0]['uuid'],
+                                    'scrape_extra':scrape_extra,
+                                    'scrape_onto_desc':scrape_onto_desc,
+                                    'use_category_not_genre':use_category_not_genre,
+                                    })
+
+        # http://192.168.199.169:9981/api/idnode/load?uuid=294cf70fff0c51bd79fd5fc64328d729
+
+
+
+        # if "EPG Brasil Net" in l['title']:
+        #     uuid_str = l['uuid']
+        #     name_str = l['title']
+        #     break
+
+    # print(grabbers_found)
+
+    if grabbers_found:
+        for g in grabbers_found:
+            logging.info("Encontrado %s" % g['name'])
+            if g['scrape_extra'] and g['scrape_onto_desc'] and g['use_category_not_genre']:
+                logging.info("%s configurado ok" % g['name'])
+            else:
+                logging.info("Reconfigurando %s", g['name'])
+                req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + g['uuid'] + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}')
+                urllib2.urlopen(req)
+    else:
+
+        logging.info("Nenhum grabber encontrado, adicionando External: XMLTV")
+
+        files_dl = ['tv_grab_br', 'category-filter.pl']
+
+        for file_donwload in files_dl:
+            file_donwload_path = conf['scriptspath'] + file_donwload
+
+            overwrite_file = True
+
+            if os.path.isfile(file_donwload_path):
+                overwrite = raw_input('Arquivo %s já existe, sobrescrever? S = sim, N = não ' % (file_donwload_path))
+                if not overwrite.lower() == 's':
+                    overwrite_file = False
+
+            if overwrite_file:
+
+            # if not os.path.isfile(file_donwload_path):
+                logging.info("Download do arquivo %s e salvando em %s" % (file_donwload, file_donwload_path))
+                url = conf['scriptsurl'] + file_donwload
+                # url = conf['updateurl']
+                f = urllib2.urlopen(url)
+                with open( file_donwload_path, 'wb') as local_file:  
+                    local_file.write(f.read())
+
+                
+                # verificar permissao necessaria
+                os.chmod(file_donwload_path, 0o0777)
+
+            # else:
+            #     print("arquivo ja existente")
+
+
+
+
+
+        logging.info("Verificando se %stv_grab_br está no crontab" % conf['scriptspath'])
+        if os.path.isfile(conf['crontabpath']):
+
+            with open(conf['crontabpath'], 'r') as file:
+                data = file.readlines()
+
+
+            if not any("tv_grab_br" in s for s in data):
+                logging.info("Adicionando entrada ao crontab")
+                last_line = data[len(data)-1]
+                if not "\n" in last_line:
+                    data[len(data)-1] = data[len(data)-1] + "\n"
+
+                data.append("0 0,12 * * * /usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock\n")
+
+            with open(conf['crontabpath'], 'w') as file:
+                file.writelines( data )
+
+        else:
+            logging.info("Criando arquivo de crontab")
+            f = open(conf['crontabpath'], "w")
+            f.write("0 0,12 * * * /usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock\n")
+            f.close()
+
+        # verificar socat
+        socat_path = "/usr/bin/socat"
+        if not os.path.isfile(socat_path):
+            logging.info("Não encontrado %s, instalando" % socat_path)
+
+            if not conf['devmode']:
+                check_call(['apt-get', 'update'],
+                     stdout=open(os.devnull,'wb'), stderr=STDOUT)
+
+                check_call(['apt-get', 'install', '-y', 'socat'],
+                     stdout=open(os.devnull,'wb'), stderr=STDOUT)
+
+        # rodar tvgrab uma vez
+        if not conf['devmode']:
+            logging.info("Executando tv_grab_br")
+            cmd = conf['scriptspath'] + 'tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock'
+            os.system(cmd)
+
+
+        logging.info("Habilitando e reconfigurando External: XMLTV")
+        req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_external_xml + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}')
         urllib2.urlopen(req)
 
-    logging.info("Executando 'Re-run internal epg Grabbers")
+
+    # if uuid_str != "":
+    #     logging.info("Habilitando %s", name_str)
+    #     req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_str + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}')
+    #     urllib2.urlopen(req)
+
+    logging.info("Executando 'Re-run internal epg Grabbers'")
     req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/internal/rerun?rerun=1')
     urllib2.urlopen(req)
     # wait
     time.sleep(5)
-
+    # else:
+    #     logging.info("nao encontrado")
 
 def processa_lista_canais(conf):
     """
@@ -434,8 +592,8 @@ def main():
 
     if has_tvh:
         configure_epg_grabber(CONFIG)
-        lista_canais = processa_lista_canais(CONFIG)
-        processa_alteracoes(CONFIG, lista_canais)
+        # lista_canais = processa_lista_canais(CONFIG)
+        # processa_alteracoes(CONFIG, lista_canais)
 
 if __name__ == '__main__':
     main()
