@@ -2,6 +2,7 @@
 
 Script para configuração do epg no tvheadend no pixel
 
+* Se não houver nenhum grabber configurado, o script faz a configuração automática.
 * Verifica se o source "EPG Brasil Net" está instalado e ativo.
 * Busca por canais em que não o epg não está configurado. Os que já estão configurados, o script não altera.
 * A primeira comparação é simplesmente uma busca por canais com mesmo nome sem "HD"
