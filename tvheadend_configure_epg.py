@@ -215,7 +215,6 @@ def check_for_tvh(conf):
     """
     Verifica se tvh ok
     """
-
     logging.info("Verificando TVHeadend")
 
     resp = False
