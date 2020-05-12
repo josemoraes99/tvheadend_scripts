@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 import argparse
 import socket
@@ -30,6 +30,7 @@ CONFIG = {
     'tvheadendPort': '9981',
     'scriptspath': '/usr/bin/',
     'crontabpath': '/var/spool/cron/crontabs/root',
+    'scripts_grabber': ['tv_grab_br', 'category-filter.pl'],
 }
 
 DEV_CONFIG = {
@@ -41,6 +42,7 @@ DEV_CONFIG = {
     'tvheadendPort': '9981',
     'scriptspath': 'tmp/',
     'crontabpath': 'tmp/root',
+    'scripts_grabber': CONFIG['scripts_grabber'],
 }
 
 class bcolors:
@@ -279,10 +281,111 @@ def alterar_epg_item(conf, idCanal, idEpg):
     urllib2.urlopen(req)
 
 
-def configure_epg_grabber(conf):
+def executar_grabber_manual(conf):
     """
-    Habilita EPG Brasil Net
+    executa tv_grab_br
     """
+    if verificar_scripts_grabber(conf) and verifica_xmltv_external(conf):
+        logging.info("Executando tv_grab_br")
+        if not conf['devmode']:
+            cmd = conf['scriptspath'] + 'tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock'
+            # os.system(cmd)
+            output = commands.getoutput(cmd)
+        else:
+            logging.info("Dev mode - skip executando tv_grab_br")
+
+
+def verificar_socat_instalado(conf):
+    resp = False
+    socat_path = "/usr/bin/socat"
+    if not os.path.isfile(socat_path):
+        logging.info("Não encontrado %s, instalando" % socat_path)
+
+        if not conf['devmode']:
+            logging.info("Executando apt-get update")
+            check_call(['apt-get', 'update'],
+                 stdout=open(os.devnull,'wb'), stderr=STDOUT)
+
+            logging.info("Executando apt-get install socat")
+            check_call(['apt-get', 'install', '-y', 'socat'],
+                 stdout=open(os.devnull,'wb'), stderr=STDOUT)
+            if os.path.isfile(socat_path):
+                resp = True
+
+    return resp
+
+
+def verificar_crontab():
+    """
+    verifica crontab
+    """
+    resp = False
+    str_search = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
+    stream = os.popen('crontab -u root -l').read().strip()
+    result_items = stream.split("\n")
+    for item in result_items:
+        if str_search in item:
+            resp = True
+
+    return resp
+
+
+def adicionar_grabber_crontab():
+    """
+    altera crontab
+    """
+    file = open("/tmp/add_to_cron.sh", "w")
+    file.write('#!/bin/bash\n')
+    file.write('echo -e "$(crontab -u root -l)\\n0 0,12 * * * /usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock" | crontab -u root -')
+    file.close()
+
+    cmd = "bash /tmp/add_to_cron.sh"
+    output = commands.getoutput(cmd)
+    os.remove("/tmp/add_to_cron.sh")
+
+
+def executa_internal_grabber(conf):
+    """
+    executa internal grabber
+    """
+    logging.info("Executando 'Re-run internal epg Grabbers'")
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/internal/rerun?rerun=1')
+    urllib2.urlopen(req)
+    # wait
+    time.sleep(5)
+
+
+def verificar_scripts_grabber(conf):
+    files_dl = conf['scripts_grabber']
+    found_files = True
+
+    for file_donwload in files_dl:
+        file_donwload_path = conf['scriptspath'] + file_donwload
+        if not os.path.isfile(file_donwload_path):
+            found_files = False
+    return found_files
+
+
+def obter_uuid_xmltv(conf):
+    uuid_external_xml = False
+
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/module/list')
+    tvhreq = urllib2.urlopen(req)
+    data = json.load(tvhreq)
+
+    for l in data['entries']:
+        req1 = urllib2.Request("http://%s:%s/api/idnode/load?uuid=%s" % (conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
+        tvhreq1 = urllib2.urlopen(req1)
+        data1 = json.load(tvhreq1)
+
+        if "External: XMLTV" in data1['entries'][0]['text']:
+            uuid_external_xml = data1['entries'][0]['uuid']
+            break
+
+    return uuid_external_xml
+
+
+def obter_lista_de_grabbers(conf):
     logging.info("Obtendo lista de epg grabbers")
     req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/module/list')
     tvhreq = urllib2.urlopen(req)
@@ -294,8 +397,6 @@ def configure_epg_grabber(conf):
     logging.info("Verificando grabbers ativados")
     
     grabbers_found=[]
-
-    uuid_external_xml = False
 
     for l in data['entries']:
 
@@ -316,9 +417,6 @@ def configure_epg_grabber(conf):
             if t['id'] == "use_category_not_genre" and t['value'] == True:
                 use_category_not_genre = True
 
-        if data1['entries'][0]['text'] == "External: XMLTV":
-            uuid_external_xml = data1['entries'][0]['uuid']
-
         if grabber_enabled and not ("PSIP: ATSC Grabber" in data1['entries'][0]['text'] or "EIT: EPG Grabber" in data1['entries'][0]['text']):
             grabbers_found.append({'name':data1['entries'][0]['text'], 
                                     'uuid': data1['entries'][0]['uuid'],
@@ -326,6 +424,26 @@ def configure_epg_grabber(conf):
                                     'scrape_onto_desc':scrape_onto_desc,
                                     'use_category_not_genre':use_category_not_genre,
                                     })
+    return grabbers_found
+
+
+def verifica_xmltv_external(conf):
+    found_grabber = False
+    grabbers_found = obter_lista_de_grabbers(conf)
+
+    for grabber in grabbers_found:
+        if "External: XMLTV" in grabber['name']:
+            found_grabber = True
+
+    # sys.exit()
+    return found_grabber
+
+
+def configure_epg_grabber(conf):
+    """
+    Habilita EPG Brasil Net
+    """
+    grabbers_found = obter_lista_de_grabbers(conf)
 
     if grabbers_found:
         for g in grabbers_found:
@@ -340,7 +458,8 @@ def configure_epg_grabber(conf):
 
         logging.info("Nenhum grabber encontrado, adicionando External: XMLTV")
 
-        files_dl = ['tv_grab_br', 'category-filter.pl']
+
+        files_dl = conf['scripts_grabber']
 
         for file_donwload in files_dl:
             file_donwload_path = conf['scriptspath'] + file_donwload
@@ -364,60 +483,31 @@ def configure_epg_grabber(conf):
                 # verificar permissao necessaria
                 os.chmod(file_donwload_path, 0o0777)
 
+        # Verificar no crontab
         logging.info("Verificando se %stv_grab_br está no crontab" % conf['scriptspath'])
-        if os.path.isfile(conf['crontabpath']):
 
-            with open(conf['crontabpath'], 'r') as file:
-                data = file.readlines()
+        if not verificar_crontab() and not conf['devmode']:
 
+            logging.info("Adicionando entrada ao crontab")
 
-            if not any("tv_grab_br" in s for s in data):
-                logging.info("Adicionando entrada ao crontab")
-                last_line = data[len(data)-1]
-                if not "\n" in last_line:
-                    data[len(data)-1] = data[len(data)-1] + "\n"
-
-                data.append("0 0,12 * * * /usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock\n")
-
-            with open(conf['crontabpath'], 'w') as file:
-                file.writelines( data )
-
-        else:
-            logging.info("Criando arquivo de crontab")
-            f = open(conf['crontabpath'], "w")
-            f.write("0 0,12 * * * /usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock\n")
-            f.close()
+            adicionar_grabber_crontab()
 
         # verificar socat
-        socat_path = "/usr/bin/socat"
-        if not os.path.isfile(socat_path):
-            logging.info("Não encontrado %s, instalando" % socat_path)
+        verificar_socat_instalado(conf)
 
-            if not conf['devmode']:
-                logging.info("Executando apt-get update")
-                check_call(['apt-get', 'update'],
-                     stdout=open(os.devnull,'wb'), stderr=STDOUT)
-
-                logging.info("Executando apt-get install socat")
-                check_call(['apt-get', 'install', '-y', 'socat'],
-                     stdout=open(os.devnull,'wb'), stderr=STDOUT)
+        uuid_external_xml = obter_uuid_xmltv(conf)
 
         logging.info("Habilitando e reconfigurando External: XMLTV")
         req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_external_xml + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}')
         urllib2.urlopen(req)
 
         # rodar tvgrab uma vez
-        if not conf['devmode']:
-            logging.info("Executando tv_grab_br")
-            cmd = conf['scriptspath'] + 'tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock'
-            # os.system(cmd)
-            output = commands.getoutput(cmd)
+        executar_grabber_manual(conf)
+        time.sleep(2)
 
-    logging.info("Executando 'Re-run internal epg Grabbers'")
-    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/internal/rerun?rerun=1')
-    urllib2.urlopen(req)
-    # wait
-    time.sleep(5)
+    if not verifica_xmltv_external(conf):
+        executa_internal_grabber(conf)
+
 
 def processa_lista_canais(conf):
     """
@@ -447,9 +537,11 @@ def processa_lista_canais(conf):
             if cn_str not in lista_envio:
                 lista_envio.append(cn_str)
 
+    #lista externa
+    #executar apos
     list_ext = get_external_list(conf, lista_envio)
-    #lista envio
 
+    #lista envio
     final = {'lista_canais': list_channels, 'lista_epg': list_epg, 'lista_externa': list_ext}
     return final
 
@@ -557,6 +649,7 @@ def main():
         configure_epg_grabber(CONFIG)
         lista_canais = processa_lista_canais(CONFIG)
         processa_alteracoes(CONFIG, lista_canais)
+        executar_grabber_manual(CONFIG)
 
 if __name__ == '__main__':
     main()
