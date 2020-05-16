@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 
 import argparse
 import socket
@@ -533,7 +533,7 @@ def configure_epg_grabber(conf):
 
         # rodar tvgrab uma vez
         executar_grabber_manual(conf)
-        time.sleep(2)
+        time.sleep(4)
 
     if not verifica_xmltv_external(conf):
         executa_internal_grabber(conf)
