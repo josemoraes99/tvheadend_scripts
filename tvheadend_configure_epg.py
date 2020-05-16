@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 
 import argparse
 import socket
@@ -534,8 +534,14 @@ def configure_epg_grabber(conf):
         # rodar tvgrab uma vez
         executar_grabber_manual(conf)
 
+
+    if not verifica_xmltv_external(conf):
+
+        executa_internal_grabber(conf)
+
+    else:
+
         if not conf['devmode']:
-        # if conf['devmode']:
             logging.info("Aguardando lista de canais no epg ser carregada")
             list_loaded = False
             count_loop = 1
@@ -552,9 +558,6 @@ def configure_epg_grabber(conf):
                 if count_loop > 30:
                     logging.info("Aguardando lista de canais no epg ser carregada - timeout!")
                     break
-
-    if not verifica_xmltv_external(conf):
-        executa_internal_grabber(conf)
 
 
 def processa_lista_canais(conf):
