@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 
 import argparse
 import socket
@@ -351,7 +351,7 @@ def executa_internal_grabber(conf):
     req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/internal/rerun?rerun=1')
     urllib2.urlopen(req)
     # wait
-    time.sleep(5)
+    time.sleep(10)
 
 
 def verificar_scripts_grabber(conf):
@@ -533,7 +533,25 @@ def configure_epg_grabber(conf):
 
         # rodar tvgrab uma vez
         executar_grabber_manual(conf)
-        time.sleep(4)
+
+        if not conf['devmode']:
+        # if conf['devmode']:
+            logging.info("Aguardando lista de canais no epg ser carregada")
+            list_loaded = False
+            count_loop = 1
+            while not list_loaded:
+                req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/channel/list')
+                tvhreq = urllib2.urlopen(req)
+                data = json.load(tvhreq)
+
+                if len(data['entries']) > 0:
+                    break
+
+                count_loop += 1
+                time.sleep(0.5)
+                if count_loop > 30:
+                    logging.info("Aguardando lista de canais no epg ser carregada - timeout!")
+                    break
 
     if not verifica_xmltv_external(conf):
         executa_internal_grabber(conf)
