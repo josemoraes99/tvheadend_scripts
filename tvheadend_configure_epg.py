@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 import argparse
 import socket
@@ -416,7 +416,8 @@ def obter_lista_de_grabbers(conf):
             if t['id'] == "use_category_not_genre" and t['value'] == True:
                 use_category_not_genre = True
 
-        if grabber_enabled and not ("PSIP: ATSC Grabber" in data1['entries'][0]['text'] or "EIT: EPG Grabber" in data1['entries'][0]['text']):
+        # if grabber_enabled and not ("PSIP: ATSC Grabber" in data1['entries'][0]['text'] or "EIT: EPG Grabber" in data1['entries'][0]['text']):
+        if grabber_enabled:
             grabbers_found.append({'name':data1['entries'][0]['text'], 
                                     'uuid': data1['entries'][0]['uuid'],
                                     'scrape_extra':scrape_extra,
@@ -438,23 +439,53 @@ def verifica_xmltv_external(conf):
     return found_grabber
 
 
+def reconfigure_epg_grabber(conf):
+    """
+    Desativar Save EPG to disk after xmltv import
+    """
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/config/load')
+    tvhreq = urllib2.urlopen(req)
+    data = json.load(tvhreq)
+
+    for item in data['entries'][0]['params']:
+        if item['id'] == 'epgdb_saveafterimport' and item['value'] == False:
+            logging.info("Recconfigurando Save EPG to disk after xmltv import")
+            req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/config/save?node={"epgdb_saveafterimport":"true"}')
+            urllib2.urlopen(req)
+
+
 def configure_epg_grabber(conf):
     """
     Habilita EPG Brasil Net
     """
     grabbers_found = obter_lista_de_grabbers(conf)
 
-    if grabbers_found:
+    grabber_xml_external_found = False
+    grabber_xml_internal_found = False
+
+    for item in grabbers_found:
+        logging.info("Encontrado %s" % item['name'])
+        if "External: XMLTV" in item['name']:
+            grabber_xml_external_found = True
+        if "Internal: XMLTV" in item['name']:
+            grabber_xml_internal_found = True
+
+        if not "External: XMLTV" in item['name'] and not "Internal: XMLTV" in item['name']:
+            logging.info("Desativando %s" % item['name'])
+            req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + item['uuid'] + '","enabled":"false"}')
+            urllib2.urlopen(req)
+
+    if grabber_xml_external_found:
         for g in grabbers_found:
-            logging.info("Encontrado %s" % g['name'])
-            if g['scrape_extra'] and g['scrape_onto_desc'] and g['use_category_not_genre']:
+            # logging.info("Encontrado %s" % g['name'])
+            if g['scrape_extra'] and g['scrape_onto_desc'] and not g['use_category_not_genre']:
                 logging.info("%s configurado ok" % g['name'])
             else:
                 logging.info("Reconfigurando %s", g['name'])
-                req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + g['uuid'] + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}')
+                req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + g['uuid'] + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"false"}')
                 urllib2.urlopen(req)
-    else:
 
+    if not grabber_xml_external_found and not grabber_xml_internal_found:
         logging.info("Nenhum grabber encontrado, adicionando External: XMLTV")
 
 
@@ -497,7 +528,7 @@ def configure_epg_grabber(conf):
         uuid_external_xml = obter_uuid_xmltv(conf)
 
         logging.info("Habilitando e reconfigurando External: XMLTV")
-        req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_external_xml + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"true"}')
+        req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_external_xml + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"false"}')
         urllib2.urlopen(req)
 
         # rodar tvgrab uma vez
@@ -648,6 +679,7 @@ def main():
         configure_epg_grabber(CONFIG)
         lista_canais = processa_lista_canais(CONFIG)
         processa_alteracoes(CONFIG, lista_canais)
+        reconfigure_epg_grabber(CONFIG)
         executar_grabber_manual(CONFIG)
 
 if __name__ == '__main__':
