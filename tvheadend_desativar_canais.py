@@ -405,10 +405,21 @@ def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
     logging.info("version %s", __version__)
 
+    ck_updates = True
+    if args.no_update or args.dev:
+        ck_updates = False
+
     if args.force_update:
-        update( CONFIG['updateurl'], True)
+        update(CONFIG['updateurl'], True)
         print_line("alert", "Pronto.")
         sys.exit()
+
+    if ck_updates:
+        update_return = update(CONFIG['updateurl'])
+        if update_return:
+            print_line("alert", "Reiniciando script")
+            python = sys.executable
+            os.execl(python, python, *sys.argv)
 
     has_tvh = check_for_tvh(CONFIG)
 
