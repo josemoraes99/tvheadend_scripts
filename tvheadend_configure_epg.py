@@ -1,3 +1,4 @@
+#!/bin/python2
 # -*- coding: utf-8 -*-
 
 __version__ = "0.2.7"
@@ -58,6 +59,7 @@ class bcolors:
 
 def update(dl_url, force_update=False):
     """
+https://gist.github.com/gesquive/8363131
 Attempts to download the update url in order to find if an update is needed.
 If an update is needed, the current script is backed up and the update is
 saved in its place.
