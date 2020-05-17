@@ -16,6 +16,8 @@ import uuid
 import os
 import stat
 import logging
+import socket
+
 
 CONFIG = {
     'devmode': False,
@@ -182,6 +184,22 @@ Compares two version number strings
     logging.info( "New version installed as %s" % app_path )
     logging.info( "(previous version backed up to %s)" % (backup_path) )
     return True
+
+
+def get_ip():
+    """
+    Verifica ip da interface de rede
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        ip_addr = s.getsockname()[0]
+    except socket.error:
+        ip_addr = '127.0.0.1'
+    finally:
+        s.close()
+    return ip_addr
 
 
 def print_line(simb, text):
@@ -357,6 +375,9 @@ def check_for_tvh(conf):
 
 def main():
     """Main function."""
+
+    global CONFIG, DEV_CONFIG
+
     parser = argparse.ArgumentParser(description='Desativar canais no Tvheadend.')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--no-update', action='store_true', help='não verifica por atualização')
@@ -373,6 +394,9 @@ def main():
     group_desativar.add_argument('--ativar-todos-canais', action='store_true', help='Ativa todos os canais')
 
     args = parser.parse_args()
+
+    # workaround tvheadend localhost
+    CONFIG['tvheadendAddress'] = get_ip()
 
     if args.dev:
         print(args)
