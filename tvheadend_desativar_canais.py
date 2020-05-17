@@ -2,7 +2,7 @@
 
 # -*- coding: utf-8 -*-
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 import argparse
 from urllib.request import urlopen
@@ -86,7 +86,7 @@ Compares two version number strings
         logging.info( "Error %s" % (errno) )
         return
 
-    match_regex = re.search(r'__version__ *= *"(\S+)"', update_file)
+    match_regex = re.search(r'__version__ *= *"(\S+)"', update_file.decode('utf-8'))
     if not match_regex:
         logging.info( "No version info could be found" )
         return
