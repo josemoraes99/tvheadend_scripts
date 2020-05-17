@@ -2,7 +2,7 @@
 
 # -*- coding: utf-8 -*-
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 import argparse
 from urllib.request import urlopen
@@ -57,8 +57,8 @@ Compares two version number strings
             if s.isdigit(): return int(s)
             return s
 
-        seqA = map(num, re.findall('\d+|\w+', vA.replace('-SNAPSHOT', '')))
-        seqB = map(num, re.findall('\d+|\w+', vB.replace('-SNAPSHOT', '')))
+        seqA = list(map(num, re.findall('\d+|\w+', vA.replace('-SNAPSHOT', ''))))
+        seqB = list(map(num, re.findall('\d+|\w+', vB.replace('-SNAPSHOT', ''))))
 
         # this is to ensure that 1.0 == 1.0.0 in cmp(..)
         lenA, lenB = len(seqA), len(seqB)
@@ -71,6 +71,9 @@ Compares two version number strings
             if vA.endswith('-SNAPSHOT'): return -1
             if vB.endswith('-SNAPSHOT'): return 1
         return rc
+
+    def cmp(a, b):
+        return (a > b) - (a < b)
 
     # dl the first 256 bytes and parse it for version number
     try:
@@ -121,13 +124,14 @@ Compares two version number strings
     dl_path = app_path + ".new"
     backup_path = app_path + ".old"
     try:
-        dl_file = open(dl_path, 'w')
+        dl_file = open(dl_path, 'wb')
         http_stream = urlopen(dl_url)
         total_size = None
         bytes_so_far = 0
         chunk_size = 8192
         try:
-            total_size = int(http_stream.info().getheader('Content-Length').strip())
+            # total_size = int(http_stream.info().getheader('Content-Length').strip())
+            total_size = int(http_stream.headers['content-length'].strip())
         except:
             # The header is improper or missing Content-Length, just download
             dl_file.write(http_stream.read())
