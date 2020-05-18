@@ -1,7 +1,7 @@
 #!/bin/python2
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.8"
+__version__ = "0.2.9"
 
 import argparse
 import socket
@@ -567,13 +567,14 @@ def configure_epg_grabber(conf):
                 os.chmod(file_donwload_path, 0o0777)
 
         # Verificar no crontab
-        logging.info("Verificando se %stv_grab_br está no crontab" % conf['scriptspath'])
+        # logging.info("Verificando se %stv_grab_br está no crontab" % conf['scriptspath'])
 
-        if not verificar_crontab() and not conf['devmode']:
+        # verificar_crontab()
+        # if not verificar_crontab() and not conf['devmode']:
 
-            logging.info("Adicionando entrada ao crontab")
+        #     logging.info("Adicionando entrada ao crontab")
 
-            adicionar_grabber_crontab()
+        #     adicionar_grabber_crontab()
 
         # verificar socat
         verificar_socat_instalado(conf)
@@ -587,6 +588,11 @@ def configure_epg_grabber(conf):
         # rodar tvgrab uma vez
         executar_grabber_manual(conf)
 
+
+    # Verificar no crontab
+    logging.info("Verificando se %stv_grab_br está no crontab" % conf['scriptspath'])
+
+    verificar_crontab()
 
     if not verifica_xmltv_external(conf):
 
