@@ -1,7 +1,7 @@
 #!/bin/python2
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.7"
+__version__ = "0.2.8"
 
 import argparse
 import socket
@@ -316,33 +316,84 @@ def verificar_socat_instalado(conf):
     return resp
 
 
+# def verificar_crontab():
+#     """
+#     verifica crontab
+#     """
+#     resp = False
+#     str_search = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
+#     stream = os.popen('crontab -u root -l').read().strip()
+#     result_items = stream.split("\n")
+#     for item in result_items:
+#         if str_search in item:
+#             resp = True
+
+#     return resp
+
+
+# def adicionar_grabber_crontab():
+#     """
+#     altera crontab
+#     """
+#     file = open("/tmp/add_to_cron.sh", "w")
+#     file.write('#!/bin/bash\n')
+#     file.write('echo -e "$(crontab -u root -l)\\n0 0,12 * * * /usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock" | crontab -u root -')
+#     file.close()
+
+#     cmd = "bash /tmp/add_to_cron.sh"
+#     output = commands.getoutput(cmd)
+#     os.remove("/tmp/add_to_cron.sh")
 def verificar_crontab():
     """
     verifica crontab
     """
-    resp = False
+    found_string_hour = False
+    found_string_reboot = False
+
     str_search = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
     stream = os.popen('crontab -u root -l').read().strip()
-    result_items = stream.split("\n")
-    for item in result_items:
-        if str_search in item:
-            resp = True
 
-    return resp
+    if stream == "": #crontab vazio
+        crontab_vazio = True
+        adicionar_crontab_hour(False)
+        adicionar_crontab_reboot()
+
+    else:
+        result_items = stream.split("\n")
+
+        for item in result_items:
+            if str_search in item and "@reboot" in item:
+                found_string_reboot = True
+            if str_search in item and "@reboot" not in item:
+                found_string_hour = True
+
+        if not found_string_hour:
+            adicionar_crontab_hour(True)
+
+        if not found_string_reboot:
+            adicionar_crontab_reboot()
 
 
-def adicionar_grabber_crontab():
+def adicionar_crontab_hour(first):
     """
-    altera crontab
+    adciona tvgrab ao crontab a cada 12 horas
+    input --> true se hover crontab e adiciona linefeed
     """
-    file = open("/tmp/add_to_cron.sh", "w")
-    file.write('#!/bin/bash\n')
-    file.write('echo -e "$(crontab -u root -l)\\n0 0,12 * * * /usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock" | crontab -u root -')
-    file.close()
-
-    cmd = "bash /tmp/add_to_cron.sh"
+    line_spacer = ""
+    cmd_str = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
+    if first:
+        line_spacer = "\n"
+    cmd = "bash -c 'echo -e \"$(crontab -u root -l)" + line_spacer + "0 0,12 * * * " + cmd_str + "\" | crontab -u root -'"
     output = commands.getoutput(cmd)
-    os.remove("/tmp/add_to_cron.sh")
+
+
+def adicionar_crontab_reboot():
+    """
+    adciona tvgrab ao crontab ao reboot
+    """
+    cmd_str = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
+    cmd = "bash -c 'echo -e \"$(crontab -u root -l)\n@reboot " + cmd_str + "\" | crontab -u root -'"
+    output = commands.getoutput(cmd)
 
 
 def executa_internal_grabber(conf):
