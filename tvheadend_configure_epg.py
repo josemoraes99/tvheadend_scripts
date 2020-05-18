@@ -1,7 +1,7 @@
 #!/bin/python2
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.9"
+__version__ = "0.2.11"
 
 import argparse
 import socket
@@ -316,33 +316,6 @@ def verificar_socat_instalado(conf):
     return resp
 
 
-# def verificar_crontab():
-#     """
-#     verifica crontab
-#     """
-#     resp = False
-#     str_search = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
-#     stream = os.popen('crontab -u root -l').read().strip()
-#     result_items = stream.split("\n")
-#     for item in result_items:
-#         if str_search in item:
-#             resp = True
-
-#     return resp
-
-
-# def adicionar_grabber_crontab():
-#     """
-#     altera crontab
-#     """
-#     file = open("/tmp/add_to_cron.sh", "w")
-#     file.write('#!/bin/bash\n')
-#     file.write('echo -e "$(crontab -u root -l)\\n0 0,12 * * * /usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock" | crontab -u root -')
-#     file.close()
-
-#     cmd = "bash /tmp/add_to_cron.sh"
-#     output = commands.getoutput(cmd)
-#     os.remove("/tmp/add_to_cron.sh")
 def verificar_crontab():
     """
     verifica crontab
@@ -379,6 +352,7 @@ def adicionar_crontab_hour(first):
     adciona tvgrab ao crontab a cada 12 horas
     input --> true se hover crontab e adiciona linefeed
     """
+    logging.info("Adicionando crontab as 0 e 12 horas")
     line_spacer = ""
     cmd_str = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
     if first:
@@ -391,8 +365,9 @@ def adicionar_crontab_reboot():
     """
     adciona tvgrab ao crontab ao reboot
     """
+    logging.info("Adicionando crontab ao reboot")
     cmd_str = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
-    cmd = "bash -c 'echo -e \"$(crontab -u root -l)\n@reboot " + cmd_str + "\" | crontab -u root -'"
+    cmd = "bash -c 'echo -e \"$(crontab -u root -l)\n@reboot sleep 120; " + cmd_str + "\" | crontab -u root -'"
     output = commands.getoutput(cmd)
 
 

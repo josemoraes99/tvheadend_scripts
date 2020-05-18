@@ -2,7 +2,7 @@
 
 # -*- coding: utf-8 -*-
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 import argparse
 from urllib.request import urlopen
@@ -232,6 +232,14 @@ def enable_channel(conf, uuid, name):
     urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","enabled":"true"}' % (conf['tvheadendAddress'], conf['tvheadendPort'], uuid))
 
 
+def alterar_channel_number(conf, uuid, name, old_number, new_number):
+    """
+    altera numero do canal
+    """
+    print_line("info", "alterando número do canal %s de %s para %s" % (name, old_number, new_number))
+    urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","number":%s}' % (conf['tvheadendAddress'], conf['tvheadendPort'], uuid, new_number))
+
+
 def get_tvh_channel_list(conf):
     """
     obtendo lista de canais
@@ -258,14 +266,14 @@ def desativar_canais_duplicados(conf):
 
     new_channel = []
     for i in list_channel:
-        iName = i["name"].lower().replace(' hd', '')
+        iName = i["name"].lower().replace(' hd', '').replace('tv ', '').strip()
         iName = " ".join(iName.split())
 
         add_c = True
 
         for j in new_channel:
 
-            jName = j["name"].lower().replace(' hd', '')
+            jName = j["name"].lower().replace(' hd', '').replace('tv ', '').strip()
             jName = " ".join(jName.split())
 
             if jName == iName and " hd" in i["name"].lower() and " hd" not in j["name"].lower():
@@ -354,6 +362,30 @@ def ativar_todos_canais(conf):
             enable_channel(conf, item["uuid"], item["name"])
 
 
+def reorganizar_numeracao_canais(conf):
+    """
+    reorganiza numeracao dos canais, colocando os sd junto aos hd quando houver numero disponivel
+    """
+    list_channel = get_tvh_channel_list(conf)
+    for item in list_channel:
+        curr_number = item['number']
+
+        # interrompe o FOR
+        if not item['enabled']:
+            continue # interrompe o FOR
+        if curr_number > 300:
+            continue # interrompe o FOR
+
+        new_number = curr_number + 500
+        number_free = True
+        for check in list_channel:
+            if check['number'] == new_number:
+                number_free = False
+
+        if number_free:
+            alterar_channel_number(conf, item['uuid'], item['name'], curr_number, new_number)
+
+
 def check_for_tvh(conf):
     """
     Verifica se tvh ok
@@ -382,20 +414,21 @@ def main():
 
     global CONFIG, DEV_CONFIG
 
-    parser = argparse.ArgumentParser(description='Desativar canais no Tvheadend.')
+    parser = argparse.ArgumentParser(description='Gerencia canais no Tvheadend.')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--no-update', action='store_true', help='não verifica por atualização')
     group.add_argument('--force-update', action='store_true', help='força atualização')
 
 
     group_debug = parser.add_mutually_exclusive_group()
-    group_debug.add_argument('--dev', action='store_true', help='modo de testes')
+    group_debug.add_argument('--dev', action='store_true', help='modo de testes - desenvolvimento')
 
     group_desativar = parser.add_mutually_exclusive_group(required=True)
     group_desativar.add_argument('--desativar-canais-sd', action='store_true', help='desativar canais sd quando hover em hd')
     group_desativar.add_argument('--desativar-canais-adultos', action='store_true', help='desativar canais adultos')
     group_desativar.add_argument('--desativar-canais-internos', action='store_true', help='desativar canais internos da operadora')
     group_desativar.add_argument('--ativar-todos-canais', action='store_true', help='Ativa todos os canais')
+    group_desativar.add_argument('--reorganizar-numeracao-canais', action='store_true', help='Reorganiza numeracao dos canais - sd junto com hd (irreversível - somente excluindo e mapeando)')
 
     args = parser.parse_args()
 
@@ -438,6 +471,9 @@ def main():
 
     if args.ativar_todos_canais and has_tvh:
         ativar_todos_canais(CONFIG)
+
+    if args.reorganizar_numeracao_canais and has_tvh:
+        reorganizar_numeracao_canais(CONFIG)
 
 if __name__ == '__main__':
     main()
