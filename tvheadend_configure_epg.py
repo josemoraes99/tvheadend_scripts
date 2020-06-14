@@ -1,7 +1,7 @@
 #!/bin/python2
 # -*- coding: utf-8 -*-
 
-__version__ = "0.2.11"
+__version__ = "0.2.12"
 
 import argparse
 import socket
@@ -46,6 +46,7 @@ DEV_CONFIG = {
     'scripts_grabber': CONFIG['scripts_grabber'],
 }
 
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -72,10 +73,12 @@ Compares two version number strings
 @author <a href="http_stream://sebthom.de/136-comparing-version-numbers-in-jython-pytho/">Sebastian Thomschke</a>
 @return negative if vA < vB, zero if vA == vB, positive if vA > vB.
 """
-        if vA == vB: return 0
+        if vA == vB:
+            return 0
 
         def num(s):
-            if s.isdigit(): return int(s)
+            if s.isdigit():
+                return int(s)
             return s
 
         seqA = map(num, re.findall('\d+|\w+', vA.replace('-SNAPSHOT', '')))
@@ -83,14 +86,18 @@ Compares two version number strings
 
         # this is to ensure that 1.0 == 1.0.0 in cmp(..)
         lenA, lenB = len(seqA), len(seqB)
-        for i in range(lenA, lenB): seqA += (0,)
-        for i in range(lenB, lenA): seqB += (0,)
+        for i in range(lenA, lenB):
+            seqA += (0,)
+        for i in range(lenB, lenA):
+            seqB += (0,)
 
         rc = cmp(seqA, seqB)
 
         if rc == 0:
-            if vA.endswith('-SNAPSHOT'): return -1
-            if vB.endswith('-SNAPSHOT'): return 1
+            if vA.endswith('-SNAPSHOT'):
+                return -1
+            if vB.endswith('-SNAPSHOT'):
+                return 1
         return rc
 
     # dl the first 256 bytes and parse it for version number
@@ -101,32 +108,35 @@ Compares two version number strings
         http_stream.close()
 
     except IOError, (errno, strerror):
-        logging.info( "Unable to retrieve version data" )
-        logging.info( "Error %s: %s" % (errno, strerror) )
+        logging.info("Unable to retrieve version data")
+        logging.info("Error %s: %s" % (errno, strerror))
         return
 
     match_regex = re.search(r'__version__ *= *"(\S+)"', update_file)
     if not match_regex:
-        logging.info( "No version info could be found" )
+        logging.info("No version info could be found")
         return
     update_version = match_regex.group(1)
 
     if not update_version:
-        logging.info( "Unable to parse version data" )
+        logging.info("Unable to parse version data")
         return
 
     if force_update:
-        logging.info( "Forcing update, downloading version %s..." % update_version )
+        logging.info("Forcing update, downloading version %s..." %
+                     update_version)
 
     else:
         cmp_result = compare_versions(__version__, update_version)
         if cmp_result < 0:
-            logging.info( "Newer version %s available, downloading..." % update_version )
+            logging.info("Newer version %s available, downloading..." %
+                         update_version)
         elif cmp_result > 0:
-            logging.info( "Local version %s newer then available %s, not updating." % (__version__, update_version) )
+            logging.info("Local version %s newer then available %s, not updating." % (
+                __version__, update_version))
             return
         else:
-            logging.info( "You already have the latest version." )
+            logging.info("You already have the latest version.")
             return
 
     # dl, backup, and save the updated script
@@ -135,7 +145,7 @@ Compares two version number strings
     #     app_path = __file__
 
     if not os.access(app_path, os.W_OK):
-        logging.info( "Cannot update -- unable to write to %s" % app_path )
+        logging.info("Cannot update -- unable to write to %s" % app_path)
 
     dl_path = app_path + ".new"
     backup_path = app_path + ".old"
@@ -146,7 +156,8 @@ Compares two version number strings
         bytes_so_far = 0
         chunk_size = 8192
         try:
-            total_size = int(http_stream.info().getheader('Content-Length').strip())
+            total_size = int(http_stream.info().getheader(
+                'Content-Length').strip())
         except:
             # The header is improper or missing Content-Length, just download
             dl_file.write(http_stream.read())
@@ -162,7 +173,7 @@ Compares two version number strings
             percent = float(bytes_so_far) / total_size
             percent = round(percent*100, 2)
             sys.stdout.write("Downloaded %d of %d bytes (%0.2f%%)\r" %
-                (bytes_so_far, total_size, percent))
+                             (bytes_so_far, total_size, percent))
 
             if bytes_so_far >= total_size:
                 sys.stdout.write('\n')
@@ -170,20 +181,22 @@ Compares two version number strings
         http_stream.close()
         dl_file.close()
     except IOError, (errno, strerror):
-        logging.info( "Download failed" )
-        logging.info( "Error %s: %s" % (errno, strerror) )
+        logging.info("Download failed")
+        logging.info("Error %s: %s" % (errno, strerror))
         return
 
     try:
         os.rename(app_path, backup_path)
     except OSError, (errno, strerror):
-        logging.info( "Unable to rename %s to %s: (%d) %s" % (app_path, backup_path, errno, strerror) )
+        logging.info("Unable to rename %s to %s: (%d) %s" %
+                     (app_path, backup_path, errno, strerror))
         return
 
     try:
         os.rename(dl_path, app_path)
     except OSError, (errno, strerror):
-        logging.info( "Unable to rename %s to %s: (%d) %s" % (dl_path, app_path, errno, strerror) )
+        logging.info("Unable to rename %s to %s: (%d) %s" %
+                     (dl_path, app_path, errno, strerror))
         return
 
     try:
@@ -192,8 +205,8 @@ Compares two version number strings
     except:
         os.chmod(app_path, 0755)
 
-    logging.info( "New version installed as %s" % app_path )
-    logging.info( "(previous version backed up to %s)" % (backup_path) )
+    logging.info("New version installed as %s" % app_path)
+    logging.info("(previous version backed up to %s)" % (backup_path))
     return True
 
 
@@ -223,7 +236,8 @@ def check_for_tvh(conf):
 
     logging.info("TVHeadend running")
     try:
-        req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/serverinfo')
+        req = urllib2.Request(
+            "http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/serverinfo')
         urllib2.urlopen(req)
     except urllib2.HTTPError as e_error:
         logging.info("TVHeadend com autenticação, utilize --help")
@@ -243,11 +257,13 @@ def get_tvh_channel_list(conf):
     """
     logging.info("Obtendo lista de canais do TVHeadend")
     final_list = []
-    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/channel/grid?limit=2000&all=1')
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" +
+                          conf['tvheadendPort'] + '/api/channel/grid?limit=2000&all=1')
     tvhreq = urllib2.urlopen(req)
     data = json.load(tvhreq)
     for l in data['entries']:
-        final_list.append({"number":l['number'], "uuid":l['uuid'], "name":l['name'], "epggrab":l['epggrab'], "enabled":l['enabled']})
+        final_list.append({"number": l['number'], "uuid": l['uuid'],
+                           "name": l['name'], "epggrab": l['epggrab'], "enabled": l['enabled']})
         # print ( "%s %s %s %s" % (l['number'], l['uuid'], l['name'], l['epggrab']) )
 
     final_list = sorted(final_list, key=lambda i: i['number'])
@@ -266,7 +282,8 @@ def get_external_list(conf, lista):
     data = {'src': 'e2', 'node': uuid_one, 'listChannel': picons_list}
     data = json.dumps(data)
 
-    req = urllib2.Request(conf['urlPicons'], data, {'Content-Type': 'application/json'})
+    req = urllib2.Request(conf['urlPicons'], data, {
+                          'Content-Type': 'application/json'})
     fil = urllib2.urlopen(req)
     list_url = json.load(fil)
     fil.close()
@@ -278,7 +295,8 @@ def alterar_epg_item(conf, idCanal, idEpg):
     """
     envia alteracao de epg no canal para o tvh
     """
-    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + idCanal + '","epggrab":["' + idEpg + '"]}')
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] +
+                          '/api/idnode/save?node={"uuid":"' + idCanal + '","epggrab":["' + idEpg + '"]}')
     urllib2.urlopen(req)
 
 
@@ -289,7 +307,8 @@ def executar_grabber_manual(conf):
     if verificar_scripts_grabber(conf) and verifica_xmltv_external(conf):
         logging.info("Executando tv_grab_br")
         if not conf['devmode']:
-            cmd = conf['scriptspath'] + 'tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock'
+            cmd = conf['scriptspath'] + \
+                'tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock'
             # os.system(cmd)
             output = commands.getoutput(cmd)
         else:
@@ -305,11 +324,11 @@ def verificar_socat_instalado(conf):
         if not conf['devmode']:
             logging.info("Executando apt-get update")
             check_call(['apt-get', 'update'],
-                 stdout=open(os.devnull,'wb'), stderr=STDOUT)
+                       stdout=open(os.devnull, 'wb'), stderr=STDOUT)
 
             logging.info("Executando apt-get install socat")
             check_call(['apt-get', 'install', '-y', 'socat'],
-                 stdout=open(os.devnull,'wb'), stderr=STDOUT)
+                       stdout=open(os.devnull, 'wb'), stderr=STDOUT)
             if os.path.isfile(socat_path):
                 resp = True
 
@@ -326,7 +345,7 @@ def verificar_crontab():
     str_search = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
     stream = os.popen('crontab -u root -l').read().strip()
 
-    if stream == "": #crontab vazio
+    if stream == "":  # crontab vazio
         crontab_vazio = True
         adicionar_crontab_hour(False)
         adicionar_crontab_reboot()
@@ -357,7 +376,8 @@ def adicionar_crontab_hour(first):
     cmd_str = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
     if first:
         line_spacer = "\n"
-    cmd = "bash -c 'echo -e \"$(crontab -u root -l)" + line_spacer + "0 0,12 * * * " + cmd_str + "\" | crontab -u root -'"
+    cmd = "bash -c 'echo -e \"$(crontab -u root -l)" + line_spacer + \
+        "0 0,12 * * * " + cmd_str + "\" | crontab -u root -'"
     output = commands.getoutput(cmd)
 
 
@@ -367,7 +387,8 @@ def adicionar_crontab_reboot():
     """
     logging.info("Adicionando crontab ao reboot")
     cmd_str = "/usr/bin/tv_grab_br | /usr/bin/socat - UNIX-CONNECT:/home/root/.hts/tvheadend/epggrab/xmltv.sock"
-    cmd = "bash -c 'echo -e \"$(crontab -u root -l)\n@reboot sleep 120; " + cmd_str + "\" | crontab -u root -'"
+    cmd = "bash -c 'echo -e \"$(crontab -u root -l)\n@reboot sleep 120; " + \
+        cmd_str + "\" | crontab -u root -'"
     output = commands.getoutput(cmd)
 
 
@@ -376,7 +397,8 @@ def executa_internal_grabber(conf):
     executa internal grabber
     """
     logging.info("Executando 'Re-run internal epg Grabbers'")
-    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/internal/rerun?rerun=1')
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" +
+                          conf['tvheadendPort'] + '/api/epggrab/internal/rerun?rerun=1')
     urllib2.urlopen(req)
     # wait
     time.sleep(10)
@@ -396,12 +418,14 @@ def verificar_scripts_grabber(conf):
 def obter_uuid_xmltv(conf):
     uuid_external_xml = False
 
-    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/module/list')
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] +
+                          ":" + conf['tvheadendPort'] + '/api/epggrab/module/list')
     tvhreq = urllib2.urlopen(req)
     data = json.load(tvhreq)
 
     for l in data['entries']:
-        req1 = urllib2.Request("http://%s:%s/api/idnode/load?uuid=%s" % (conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
+        req1 = urllib2.Request("http://%s:%s/api/idnode/load?uuid=%s" %
+                               (conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
         tvhreq1 = urllib2.urlopen(req1)
         data1 = json.load(tvhreq1)
 
@@ -414,7 +438,8 @@ def obter_uuid_xmltv(conf):
 
 def obter_lista_de_grabbers(conf):
     logging.info("Obtendo lista de epg grabbers")
-    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/module/list')
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] +
+                          ":" + conf['tvheadendPort'] + '/api/epggrab/module/list')
     tvhreq = urllib2.urlopen(req)
     data = json.load(tvhreq)
 
@@ -422,12 +447,13 @@ def obter_lista_de_grabbers(conf):
     name_str = ''
 
     logging.info("Verificando grabbers ativados")
-    
-    grabbers_found=[]
+
+    grabbers_found = []
 
     for l in data['entries']:
 
-        req1 = urllib2.Request("http://%s:%s/api/idnode/load?uuid=%s" % (conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
+        req1 = urllib2.Request("http://%s:%s/api/idnode/load?uuid=%s" %
+                               (conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
         tvhreq1 = urllib2.urlopen(req1)
         data1 = json.load(tvhreq1)
         grabber_enabled = False
@@ -446,12 +472,12 @@ def obter_lista_de_grabbers(conf):
 
         # if grabber_enabled and not ("PSIP: ATSC Grabber" in data1['entries'][0]['text'] or "EIT: EPG Grabber" in data1['entries'][0]['text']):
         if grabber_enabled:
-            grabbers_found.append({'name':data1['entries'][0]['text'], 
-                                    'uuid': data1['entries'][0]['uuid'],
-                                    'scrape_extra':scrape_extra,
-                                    'scrape_onto_desc':scrape_onto_desc,
-                                    'use_category_not_genre':use_category_not_genre,
-                                    })
+            grabbers_found.append({'name': data1['entries'][0]['text'],
+                                   'uuid': data1['entries'][0]['uuid'],
+                                   'scrape_extra': scrape_extra,
+                                   'scrape_onto_desc': scrape_onto_desc,
+                                   'use_category_not_genre': use_category_not_genre,
+                                   })
     return grabbers_found
 
 
@@ -471,15 +497,73 @@ def reconfigure_epg_grabber(conf):
     """
     Desativar Save EPG to disk after xmltv import
     """
-    req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/config/load')
+    req = urllib2.Request("http://" + conf['tvheadendAddress'] +
+                          ":" + conf['tvheadendPort'] + '/api/epggrab/config/load')
     tvhreq = urllib2.urlopen(req)
     data = json.load(tvhreq)
 
     for item in data['entries'][0]['params']:
         if item['id'] == 'epgdb_saveafterimport' and item['value'] == False:
             logging.info("Recconfigurando Save EPG to disk after xmltv import")
-            req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/config/save?node={"epgdb_saveafterimport":"true"}')
+            req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] +
+                                  '/api/epggrab/config/save?node={"epgdb_saveafterimport":"true"}')
             urllib2.urlopen(req)
+
+
+def download_scripts_grabber(conf):
+    import hashlib
+    files_dl = conf['scripts_grabber']
+    scripts_updated = False
+
+    for file_donwload in files_dl:
+        file_donwload_path = conf['scriptspath'] + file_donwload
+        overwrite_file = True
+
+        md5_remoto = ""
+        url = conf['scriptsurl'] + file_donwload
+        f = urllib2.urlopen(url)
+        data_download = f.read()
+        md5_returned = hashlib.md5(data_download).hexdigest()
+        md5_remoto = md5_returned
+
+        if os.path.isfile(file_donwload_path):
+            overwrite_file = False
+            md5_local = ""
+            with open(file_donwload_path, 'r') as file_to_check:
+                # read contents of the file
+                data = file_to_check.read()
+                # pipe contents of the file through
+                md5_returned = hashlib.md5(data).hexdigest()
+                md5_local = md5_returned
+
+            if md5_local and md5_remoto:
+                if md5_local != md5_remoto:
+
+                    overwrite = raw_input(
+                        'Arquivo %s é diferente do repositório, sobrescrever? S = sim, N = não ' % (file_donwload_path))
+                    if overwrite.lower() == 's':
+                        overwrite_file = True
+
+        if overwrite_file:
+
+            logging.info("Download do arquivo %s e salvando em %s" %
+                         (file_donwload, file_donwload_path))
+            # url = conf['scriptsurl'] + file_donwload
+            # url = conf['updateurl']
+            # f = urllib2.urlopen(url)
+            with open(file_donwload_path, 'wb') as local_file:
+                # local_file.write(f.read())
+                local_file.write(data_download)
+
+            # verificar permissao necessaria
+            os.chmod(file_donwload_path, 0o0777)
+            scripts_updated = True
+
+    if scripts_updated:
+        cleanup = raw_input(
+            'Deseja apagar a lista de epg atual? S = sim, N = não ')
+        if cleanup.lower() == 's':
+            apagar_base_epg(conf)
 
 
 def configure_epg_grabber(conf):
@@ -500,7 +584,8 @@ def configure_epg_grabber(conf):
 
         if not "External: XMLTV" in item['name'] and not "Internal: XMLTV" in item['name']:
             logging.info("Desativando %s" % item['name'])
-            req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + item['uuid'] + '","enabled":"false"}')
+            req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] +
+                                  '/api/idnode/save?node={"uuid":"' + item['uuid'] + '","enabled":"false"}')
             urllib2.urlopen(req)
 
     if grabber_xml_external_found:
@@ -510,64 +595,64 @@ def configure_epg_grabber(conf):
                 logging.info("%s configurado ok" % g['name'])
             else:
                 logging.info("Reconfigurando %s", g['name'])
-                req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + g['uuid'] + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"false"}')
+                req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] +
+                                      '/api/idnode/save?node={"uuid":"' + g['uuid'] + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"false"}')
                 urllib2.urlopen(req)
 
     if not grabber_xml_external_found and not grabber_xml_internal_found:
         logging.info("Nenhum grabber encontrado, adicionando External: XMLTV")
 
+        # files_dl = conf['scripts_grabber']
 
-        files_dl = conf['scripts_grabber']
+        # for file_donwload in files_dl:
+        #     file_donwload_path = conf['scriptspath'] + file_donwload
 
-        for file_donwload in files_dl:
-            file_donwload_path = conf['scriptspath'] + file_donwload
+        #     overwrite_file = True
 
-            overwrite_file = True
+        #     if os.path.isfile(file_donwload_path):
+        #         overwrite = raw_input(
+        #             'Arquivo %s já existe, sobrescrever? S = sim, N = não ' % (file_donwload_path))
+        #         if not overwrite.lower() == 's':
+        #             overwrite_file = False
 
-            if os.path.isfile(file_donwload_path):
-                overwrite = raw_input('Arquivo %s já existe, sobrescrever? S = sim, N = não ' % (file_donwload_path))
-                if not overwrite.lower() == 's':
-                    overwrite_file = False
+        #     if overwrite_file:
 
-            if overwrite_file:
+        #         logging.info("Download do arquivo %s e salvando em %s" %
+        #                      (file_donwload, file_donwload_path))
+        #         url = conf['scriptsurl'] + file_donwload
+        #         # url = conf['updateurl']
+        #         f = urllib2.urlopen(url)
+        #         with open(file_donwload_path, 'wb') as local_file:
+        #             local_file.write(f.read())
 
-                logging.info("Download do arquivo %s e salvando em %s" % (file_donwload, file_donwload_path))
-                url = conf['scriptsurl'] + file_donwload
-                # url = conf['updateurl']
-                f = urllib2.urlopen(url)
-                with open( file_donwload_path, 'wb') as local_file:  
-                    local_file.write(f.read())
-
-                # verificar permissao necessaria
-                os.chmod(file_donwload_path, 0o0777)
-
-        # Verificar no crontab
-        # logging.info("Verificando se %stv_grab_br está no crontab" % conf['scriptspath'])
-
-        # verificar_crontab()
-        # if not verificar_crontab() and not conf['devmode']:
-
-        #     logging.info("Adicionando entrada ao crontab")
-
-        #     adicionar_grabber_crontab()
-
-        # verificar socat
-        verificar_socat_instalado(conf)
+        #         # verificar permissao necessaria
+        #         os.chmod(file_donwload_path, 0o0777)
 
         uuid_external_xml = obter_uuid_xmltv(conf)
 
         logging.info("Habilitando e reconfigurando External: XMLTV")
-        req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/idnode/save?node={"uuid":"' + uuid_external_xml + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"false"}')
+        req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] +
+                              '/api/idnode/save?node={"uuid":"' + uuid_external_xml + '","enabled":"true","scrape_extra":"true","scrape_onto_desc":"true","use_category_not_genre":"false"}')
         urllib2.urlopen(req)
+
+        grabber_xml_external_found = True
+
+    if grabber_xml_external_found:
+        # verificar scripts
+        download_scripts_grabber(conf)
+
+        # verificar socat
+        verificar_socat_instalado(conf)
 
         # rodar tvgrab uma vez
         executar_grabber_manual(conf)
 
-
     # Verificar no crontab
-    logging.info("Verificando se %stv_grab_br está no crontab" % conf['scriptspath'])
+    logging.info("Verificando se %stv_grab_br está no crontab" %
+                 conf['scriptspath'])
 
-    verificar_crontab()
+    if not conf['devmode']:
+        verificar_crontab()
 
     if not verifica_xmltv_external(conf):
 
@@ -580,7 +665,8 @@ def configure_epg_grabber(conf):
             list_loaded = False
             count_loop = 1
             while not list_loaded:
-                req = urllib2.Request("http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/channel/list')
+                req = urllib2.Request(
+                    "http://" + conf['tvheadendAddress'] + ":" + conf['tvheadendPort'] + '/api/epggrab/channel/list')
                 tvhreq = urllib2.urlopen(req)
                 data = json.load(tvhreq)
 
@@ -590,7 +676,8 @@ def configure_epg_grabber(conf):
                 count_loop += 1
                 time.sleep(0.5)
                 if count_loop > 30:
-                    logging.info("Aguardando lista de canais no epg ser carregada - timeout!")
+                    logging.info(
+                        "Aguardando lista de canais no epg ser carregada - timeout!")
                     break
 
 
@@ -599,18 +686,20 @@ def processa_lista_canais(conf):
     Obtem lista de canais
     """
     list_epg = []
-    req = urllib2.Request("http://%s:%s/api/epggrab/channel/list" % (conf['tvheadendAddress'],conf['tvheadendPort']))
+    req = urllib2.Request("http://%s:%s/api/epggrab/channel/list" %
+                          (conf['tvheadendAddress'], conf['tvheadendPort']))
     tvhreq = urllib2.urlopen(req)
     data_epg = json.load(tvhreq)
     for l in data_epg['entries']:
         cn_str = l['text'].split(':')[0].strip()
-        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize('NFKD', cn_str.replace("+", "mais")).encode('ascii', 'ignore') if not c.isspace()))
+        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize(
+            'NFKD', cn_str.replace("+", "mais")).encode('ascii', 'ignore') if not c.isspace()))
         # print ( "%s %s - %s" % (l['uuid'], cnStr, l['text']) )
-        list_epg.append({"uuid":l['uuid'], "name":cn_str, "text":l['text']})
+        list_epg.append({"uuid": l['uuid'], "name": cn_str, "text": l['text']})
 
     list_channels = get_tvh_channel_list(conf)
 
-    #lista envio
+    # lista envio
     lista_envio = []
     for i in list_epg:
         if i['name'] not in lista_envio:
@@ -618,16 +707,18 @@ def processa_lista_canais(conf):
 
     for l in list_channels:
         if not l['epggrab']:
-            cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize('NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore') if not c.isspace()))
+            cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize(
+                'NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore') if not c.isspace()))
             if cn_str not in lista_envio:
                 lista_envio.append(cn_str)
 
-    #lista externa
-    #executar apos
+    # lista externa
+    # executar apos
     list_ext = get_external_list(conf, lista_envio)
 
-    #lista envio
-    final = {'lista_canais': list_channels, 'lista_epg': list_epg, 'lista_externa': list_ext}
+    # lista envio
+    final = {'lista_canais': list_channels,
+             'lista_epg': list_epg, 'lista_externa': list_ext}
     return final
 
 
@@ -647,21 +738,25 @@ def processa_alteracoes(conf, lista):
                         epg_text = e['text']
                 msg = bcolors.OKBLUE + "configurado anteriormente - " + epg_text + bcolors.ENDC
             else:
-                canalclean = re.sub(re.compile('\W'), '', ''.join(c.upper() for c in unicodedata.normalize('NFKD', l['name'].replace("+", "plus").replace(" HD", "")).encode('ascii', 'ignore') if not c.isspace()))
+                canalclean = re.sub(re.compile('\W'), '', ''.join(c.upper() for c in unicodedata.normalize(
+                    'NFKD', l['name'].replace("+", "plus").replace(" HD", "")).encode('ascii', 'ignore') if not c.isspace()))
                 found = False
                 # cn = ''
                 for e in lista['lista_epg']:
                     # AXN: AXN (XMLTV: EPG Brasil Net)
                     tmp_name_01 = e['text'].split(':')[0]
-                    tmp_name_01 = re.sub(re.compile('\W'), '', ''.join(c.upper() for c in unicodedata.normalize('NFKD', tmp_name_01.replace("+", "plus")).encode('ascii', 'ignore') if not c.isspace()))
+                    tmp_name_01 = re.sub(re.compile('\W'), '', ''.join(c.upper() for c in unicodedata.normalize(
+                        'NFKD', tmp_name_01.replace("+", "plus")).encode('ascii', 'ignore') if not c.isspace()))
                     if canalclean == tmp_name_01:
-                        msg = bcolors.OKGREEN + "found 1 - " + e['text'] + bcolors.ENDC
+                        msg = bcolors.OKGREEN + "found 1 - " + \
+                            e['text'] + bcolors.ENDC
                         found = True
                         alterar_epg_item(conf, l['uuid'], e['uuid'])
                 if not found:
                     # print(l['name'])
                     key = ""
-                    cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize('NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore') if not c.isspace()))
+                    cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize(
+                        'NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore') if not c.isspace()))
                     for i in lista['lista_externa']:
                         if cn_str == i[0]:
                             if "nettv" not in i[1] and "anos2000" not in i[1]:
@@ -682,8 +777,24 @@ def processa_alteracoes(conf, lista):
                             msg = bcolors.OKGREEN + "found 2 - " + epg_item + bcolors.ENDC
                             alterar_epg_item(conf, l['uuid'], uuid_item)
 
-            print("%-*s %-*s %s" % (3, l['number'], 25, l['name'], msg)).encode('utf-8')
+            print("%-*s %-*s %s" %
+                  (3, l['number'], 25, l['name'], msg)).encode('utf-8')
     logging.info("Concluido")
+
+
+def apagar_base_epg(conf):
+    list_epg = []
+    req = urllib2.Request("http://%s:%s/api/epggrab/channel/grid?limit=2000&all=1" %
+                          (conf['tvheadendAddress'], conf['tvheadendPort']))
+    tvhreq = urllib2.urlopen(req)
+    data_epg = json.load(tvhreq)
+    for l in data_epg['entries']:
+        logging.info("removendo {}".format(l['name']))
+        # print('http://{}:{}/api/idnode/delete?node={{"uuid":"{}"}}'.format(
+        #     conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
+        req1 = urllib2.Request('http://{}:{}/api/idnode/delete?uuid=["{}"]'.format(
+            conf['tvheadendAddress'], conf['tvheadendPort'], l['uuid']))
+        tvhreq1 = urllib2.urlopen(req1)
 
 
 def main():
@@ -691,14 +802,20 @@ def main():
 
     global CONFIG, DEV_CONFIG
 
-    parser = argparse.ArgumentParser(description='Configuração de epg no Tvheadend.')
+    parser = argparse.ArgumentParser(
+        description='Configuração de epg no Tvheadend.')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--no-update', action='store_true', help = 'não verifica por atualização')
-    group.add_argument('--force-update', action='store_true', help = 'força atualização')
-
+    group.add_argument('--no-update', action='store_true',
+                       help='não verifica por atualização')
+    group.add_argument('--force-update', action='store_true',
+                       help='força atualização')
 
     group_debug = parser.add_mutually_exclusive_group()
-    group_debug.add_argument('--dev', action='store_true', help='modo de testes')
+    group_debug.add_argument(
+        '--dev', action='store_true', help='modo de testes')
+
+    parser.add_argument('-a', '--apagar-base', action="store_true", default=False,
+                        help="apaga lista antiga de canais epg")
 
     args = parser.parse_args()
 
@@ -717,16 +834,20 @@ def main():
         CONFIG = DEV_CONFIG
 
     if args.force_update:
-        update( CONFIG['updateurl'], True)
-        logging.info( "Pronto." )
+        update(CONFIG['updateurl'], True)
+        logging.info("Pronto.")
         sys.exit()
 
     if ckUpdates:
-        updateReturn = update( CONFIG['updateurl'])
+        updateReturn = update(CONFIG['updateurl'])
         if updateReturn:
-            logging.info( "Reiniciando script" )
+            logging.info("Reiniciando script")
             python = sys.executable
             os.execl(python, python, *sys.argv)
+
+    if args.apagar_base:
+        apagar_base_epg(CONFIG)
+        sys.exit()
 
     has_tvh = check_for_tvh(CONFIG)
 
@@ -736,6 +857,7 @@ def main():
         processa_alteracoes(CONFIG, lista_canais)
         reconfigure_epg_grabber(CONFIG)
         executar_grabber_manual(CONFIG)
+
 
 if __name__ == '__main__':
     main()
