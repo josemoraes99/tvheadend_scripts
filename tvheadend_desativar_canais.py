@@ -1,22 +1,26 @@
-#!/bin/python3
-
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 __version__ = "0.1.4"
 
-import argparse
-from urllib.request import urlopen
-from urllib.request import Request
-from urllib.error import URLError, HTTPError
-import json
-import sys
-import re
-import unicodedata
-import uuid
-import os
-import stat
-import logging
 import socket
+import logging
+import stat
+import os
+import uuid
+import unicodedata
+import re
+import json
+import argparse
+import sys
+try:
+    from urllib.error import URLError, HTTPError
+    from urllib.request import Request
+    from urllib.request import urlopen
+except:
+    if sys.version_info[0] < 3:
+        print("usar python3")
+        sys.exit()
 
 
 CONFIG = {
@@ -51,25 +55,33 @@ Compares two version number strings
 @author <a href="http_stream://sebthom.de/136-comparing-version-numbers-in-jython-pytho/">Sebastian Thomschke</a>
 @return negative if vA < vB, zero if vA == vB, positive if vA > vB.
 """
-        if vA == vB: return 0
+        if vA == vB:
+            return 0
 
         def num(s):
-            if s.isdigit(): return int(s)
+            if s.isdigit():
+                return int(s)
             return s
 
-        seqA = list(map(num, re.findall('\d+|\w+', vA.replace('-SNAPSHOT', ''))))
-        seqB = list(map(num, re.findall('\d+|\w+', vB.replace('-SNAPSHOT', ''))))
+        seqA = list(
+            map(num, re.findall('\d+|\w+', vA.replace('-SNAPSHOT', ''))))
+        seqB = list(
+            map(num, re.findall('\d+|\w+', vB.replace('-SNAPSHOT', ''))))
 
         # this is to ensure that 1.0 == 1.0.0 in cmp(..)
         lenA, lenB = len(seqA), len(seqB)
-        for i in range(lenA, lenB): seqA += (0,)
-        for i in range(lenB, lenA): seqB += (0,)
+        for i in range(lenA, lenB):
+            seqA += (0,)
+        for i in range(lenB, lenA):
+            seqB += (0,)
 
         rc = cmp(seqA, seqB)
 
         if rc == 0:
-            if vA.endswith('-SNAPSHOT'): return -1
-            if vB.endswith('-SNAPSHOT'): return 1
+            if vA.endswith('-SNAPSHOT'):
+                return -1
+            if vB.endswith('-SNAPSHOT'):
+                return 1
         return rc
 
     def cmp(a, b):
@@ -84,33 +96,37 @@ Compares two version number strings
 
     # except IOError, (errno, strerror):
     except IOError as errno:
-        logging.info( "Unable to retrieve version data" )
+        logging.info("Unable to retrieve version data")
         # logging.info( "Error %s: %s" % (errno, strerror) )
-        logging.info( "Error %s" % (errno) )
+        logging.info("Error %s" % (errno))
         return
 
-    match_regex = re.search(r'__version__ *= *"(\S+)"', update_file.decode('utf-8'))
+    match_regex = re.search(r'__version__ *= *"(\S+)"',
+                            update_file.decode('utf-8'))
     if not match_regex:
-        logging.info( "No version info could be found" )
+        logging.info("No version info could be found")
         return
     update_version = match_regex.group(1)
 
     if not update_version:
-        logging.info( "Unable to parse version data" )
+        logging.info("Unable to parse version data")
         return
 
     if force_update:
-        logging.info( "Forcing update, downloading version %s..." % update_version )
+        logging.info("Forcing update, downloading version %s..." %
+                     update_version)
 
     else:
         cmp_result = compare_versions(__version__, update_version)
         if cmp_result < 0:
-            logging.info( "Newer version %s available, downloading..." % update_version )
+            logging.info("Newer version %s available, downloading..." %
+                         update_version)
         elif cmp_result > 0:
-            logging.info( "Local version %s newer then available %s, not updating." % (__version__, update_version) )
+            logging.info("Local version %s newer then available %s, not updating." % (
+                __version__, update_version))
             return
         else:
-            logging.info( "You already have the latest version." )
+            logging.info("You already have the latest version.")
             return
 
     # dl, backup, and save the updated script
@@ -119,7 +135,7 @@ Compares two version number strings
     #     app_path = __file__
 
     if not os.access(app_path, os.W_OK):
-        logging.info( "Cannot update -- unable to write to %s" % app_path )
+        logging.info("Cannot update -- unable to write to %s" % app_path)
 
     dl_path = app_path + ".new"
     backup_path = app_path + ".old"
@@ -156,9 +172,9 @@ Compares two version number strings
         dl_file.close()
     # except IOError, (errno, strerror):
     except IOError as errno:
-        logging.info( "Download failed" )
+        logging.info("Download failed")
         # logging.info( "Error %s: %s" % (errno, strerror) )
-        logging.info( "Error %s" % (errno) )
+        logging.info("Error %s" % (errno))
         return
 
     try:
@@ -166,7 +182,8 @@ Compares two version number strings
     # except OSError, (errno, strerror):
     except OSError as errno:
         # logging.info( "Unable to rename %s to %s: (%d) %s" % (app_path, backup_path, errno, strerror) )
-        logging.info( "Unable to rename %s to %s: (%d) " % (app_path, backup_path, errno) )
+        logging.info("Unable to rename %s to %s: (%d) " %
+                     (app_path, backup_path, errno))
         return
 
     try:
@@ -174,7 +191,8 @@ Compares two version number strings
     # except OSError, (errno, strerror):
     except OSError as errno:
         # logging.info( "Unable to rename %s to %s: (%d) %s" % (dl_path, app_path, errno, strerror) )
-        logging.info( "Unable to rename %s to %s: (%d)" % (dl_path, app_path, errno) )
+        logging.info("Unable to rename %s to %s: (%d)" %
+                     (dl_path, app_path, errno))
         return
 
     try:
@@ -183,10 +201,8 @@ Compares two version number strings
     except:
         # os.chmod(app_path, 0755)
         os.chmod(app_path, stat.S_IRWXU)
-
-
-    logging.info( "New version installed as %s" % app_path )
-    logging.info( "(previous version backed up to %s)" % (backup_path) )
+    logging.info("New version installed as %s" % app_path)
+    logging.info("(previous version backed up to %s)" % (backup_path))
     return True
 
 
@@ -221,7 +237,8 @@ def disable_channel(conf, uuid, name):
     desativar canal no tvh
     """
     print_line("info", "desativando " + name)
-    urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","enabled":"false"}' % (conf['tvheadendAddress'], conf['tvheadendPort'], uuid))
+    urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","enabled":"false"}' % (
+        conf['tvheadendAddress'], conf['tvheadendPort'], uuid))
 
 
 def enable_channel(conf, uuid, name):
@@ -229,15 +246,18 @@ def enable_channel(conf, uuid, name):
     desativar canal no tvh
     """
     print_line("info", "ativando " + name)
-    urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","enabled":"true"}' % (conf['tvheadendAddress'], conf['tvheadendPort'], uuid))
+    urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","enabled":"true"}' % (
+        conf['tvheadendAddress'], conf['tvheadendPort'], uuid))
 
 
 def alterar_channel_number(conf, uuid, name, old_number, new_number):
     """
     altera numero do canal
     """
-    print_line("info", "alterando número do canal %s de %s para %s" % (name, old_number, new_number))
-    urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","number":%s}' % (conf['tvheadendAddress'], conf['tvheadendPort'], uuid, new_number))
+    print_line("info", "alterando número do canal %s de %s para %s" %
+               (name, old_number, new_number))
+    urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","number":%s}' % (
+        conf['tvheadendAddress'], conf['tvheadendPort'], uuid, new_number))
 
 
 def get_tvh_channel_list(conf):
@@ -248,10 +268,12 @@ def get_tvh_channel_list(conf):
 
     final_list = []
 
-    tvhreq = urlopen("http://%s:%s/api/channel/grid?limit=2000&all=1" % (conf['tvheadendAddress'], conf['tvheadendPort']))
+    tvhreq = urlopen("http://%s:%s/api/channel/grid?limit=2000&all=1" %
+                     (conf['tvheadendAddress'], conf['tvheadendPort']))
     data = json.load(tvhreq)
     for l in data['entries']:
-        final_list.append({"number":l['number'], "uuid":l['uuid'], "name":l['name'], "epggrab":l['epggrab'], "enabled":l['enabled']})
+        final_list.append({"number": l['number'], "uuid": l['uuid'],
+                           "name": l['name'], "epggrab": l['epggrab'], "enabled": l['enabled']})
 
     final_list = sorted(final_list, key=lambda i: i['number'])
 
@@ -273,7 +295,8 @@ def desativar_canais_duplicados(conf):
 
         for j in new_channel:
 
-            jName = j["name"].lower().replace(' hd', '').replace('tv ', '').strip()
+            jName = j["name"].lower().replace(
+                ' hd', '').replace('tv ', '').strip()
             jName = " ".join(jName.split())
 
             if jName == iName and " hd" in i["name"].lower() and " hd" not in j["name"].lower():
@@ -300,7 +323,8 @@ def obter_lista_externa(conf, list_send):
     params = {'src': 'kodi', 'node': uuid_one, 'listChannel': picons_list}
     params = json.dumps(params).encode('utf8')
 
-    req = Request(conf['urlPicons'], data=params, headers={'content-type': 'application/json'})
+    req = Request(conf['urlPicons'], data=params, headers={
+                  'content-type': 'application/json'})
     fil = urlopen(req)
     list_url = json.load(fil)
     fil.close()
@@ -315,7 +339,8 @@ def desativar_canais_adultos(conf):
     list_channel = get_tvh_channel_list(conf)
     lista_envio = []
     for l in list_channel:
-        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize('NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
+        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize(
+            'NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
         if cn_str not in lista_envio and l['enabled']:
             lista_envio.append(cn_str)
 
@@ -324,7 +349,8 @@ def desativar_canais_adultos(conf):
     lista_canais_adultos = list_ext['listaCanaisAdultos']
 
     for l in list_channel:
-        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize('NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
+        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize(
+            'NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
         if cn_str in lista_canais_adultos and l['enabled']:
             disable_channel(conf, l["uuid"], l["name"])
 
@@ -336,7 +362,8 @@ def desativar_canais_internos(conf):
     list_channel = get_tvh_channel_list(conf)
     lista_envio = []
     for l in list_channel:
-        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize('NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
+        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize(
+            'NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
         if cn_str not in lista_envio and l['enabled']:
             lista_envio.append(cn_str)
 
@@ -345,11 +372,13 @@ def desativar_canais_internos(conf):
     lista_canais_internos = list_ext['listaCanaisInternos']
 
     for l in list_channel:
-        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize('NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
+        cn_str = re.sub(re.compile('\W'), '', ''.join(c.lower() for c in unicodedata.normalize(
+            'NFKD', l['name'].replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
         if cn_str in lista_canais_internos and l['enabled']:
             disable_channel(conf, l["uuid"], l["name"])
 
 # {'listaCanaisInternos': ['canalcomunitario', 'canaldecliente', 'canaldoclientehd', 'cartoongames', 'clarorecomenda', 'clarousointerno', 'now', 'teletema'], 'listaCanaisAdultos': ['playboytvhd', 'sextreme', 'sexyhot', 'venus'], 'listaPicons': [['aehd', 'https://raw.githubusercontent.com/josemoraes99/kodi_picons/master/img/ae.png'], ['amchd', 'https://raw.githubusercontent.com/josemoraes99/kodi_picons/master/img/amc.png']
+
 
 def ativar_todos_canais(conf):
     """
@@ -372,9 +401,9 @@ def reorganizar_numeracao_canais(conf):
 
         # interrompe o FOR
         if not item['enabled']:
-            continue # interrompe o FOR
+            continue  # interrompe o FOR
         if curr_number > 300:
-            continue # interrompe o FOR
+            continue  # interrompe o FOR
 
         new_number = curr_number + 500
         number_free = True
@@ -383,7 +412,8 @@ def reorganizar_numeracao_canais(conf):
                 number_free = False
 
         if number_free:
-            alterar_channel_number(conf, item['uuid'], item['name'], curr_number, new_number)
+            alterar_channel_number(
+                conf, item['uuid'], item['name'], curr_number, new_number)
 
 
 def check_for_tvh(conf):
@@ -395,9 +425,11 @@ def check_for_tvh(conf):
     resp = False
 
     try:
-        urlopen("http://%s:%s/api/serverinfo" % (conf['tvheadendAddress'], conf['tvheadendPort']))
+        urlopen("http://%s:%s/api/serverinfo" %
+                (conf['tvheadendAddress'], conf['tvheadendPort']))
     except HTTPError as e_error:
-        print_line("alert", "TVHeadend com autenticação, funciona somente sem autenticação")
+        print_line(
+            "alert", "TVHeadend com autenticação, funciona somente sem autenticação")
         print_line("alert", 'Error code: %s' % e_error.code)
     except URLError as e_error:
         print_line("alert", "TVHeadend nao encontrado")
@@ -414,21 +446,29 @@ def main():
 
     global CONFIG, DEV_CONFIG
 
-    parser = argparse.ArgumentParser(description='Gerencia canais no Tvheadend.')
+    parser = argparse.ArgumentParser(
+        description='Gerencia canais no Tvheadend.')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--no-update', action='store_true', help='não verifica por atualização')
-    group.add_argument('--force-update', action='store_true', help='força atualização')
-
+    group.add_argument('--no-update', action='store_true',
+                       help='não verifica por atualização')
+    group.add_argument('--force-update', action='store_true',
+                       help='força atualização')
 
     group_debug = parser.add_mutually_exclusive_group()
-    group_debug.add_argument('--dev', action='store_true', help='modo de testes - desenvolvimento')
+    group_debug.add_argument('--dev', action='store_true',
+                             help='modo de testes - desenvolvimento')
 
     group_desativar = parser.add_mutually_exclusive_group(required=True)
-    group_desativar.add_argument('--desativar-canais-sd', action='store_true', help='desativar canais sd quando hover em hd')
-    group_desativar.add_argument('--desativar-canais-adultos', action='store_true', help='desativar canais adultos')
-    group_desativar.add_argument('--desativar-canais-internos', action='store_true', help='desativar canais internos da operadora')
-    group_desativar.add_argument('--ativar-todos-canais', action='store_true', help='Ativa todos os canais')
-    group_desativar.add_argument('--reorganizar-numeracao-canais', action='store_true', help='Reorganiza numeracao dos canais - sd junto com hd (irreversível - somente excluindo e mapeando)')
+    group_desativar.add_argument(
+        '--desativar-canais-sd', action='store_true', help='desativar canais sd quando hover em hd')
+    group_desativar.add_argument(
+        '--desativar-canais-adultos', action='store_true', help='desativar canais adultos')
+    group_desativar.add_argument('--desativar-canais-internos',
+                                 action='store_true', help='desativar canais internos da operadora')
+    group_desativar.add_argument(
+        '--ativar-todos-canais', action='store_true', help='Ativa todos os canais')
+    group_desativar.add_argument('--reorganizar-numeracao-canais', action='store_true',
+                                 help='Reorganiza numeracao dos canais - sd junto com hd (irreversível - somente excluindo e mapeando)')
 
     args = parser.parse_args()
 
@@ -474,6 +514,7 @@ def main():
 
     if args.reorganizar_numeracao_canais and has_tvh:
         reorganizar_numeracao_canais(CONFIG)
+
 
 if __name__ == '__main__':
     main()
