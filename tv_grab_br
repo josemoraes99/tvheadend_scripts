@@ -1,4 +1,5 @@
 #!/bin/bash
 
 # wget -q -O - http://github.com/hbaldner/RepoEpgE2/raw/master/guide.xml.gz | gunzip -c | /usr/bin/category-filter.pl
-wget -q -O - https://github.com/frostyfedora/tmp/raw/main/guide-rex.xml.gz | gunzip -c | /usr/bin/category-filter.pl
+# wget -q -O - https://github.com/frostyfedora/tmp/raw/main/guide-rex.xml.gz | gunzip -c | /usr/bin/category-filter.pl
+wget -q -O - https://github.com/garryalexander/tmp/raw/main/guide.xml.gz | gunzip -c | /usr/bin/category-filter.pl

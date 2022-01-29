@@ -243,7 +243,7 @@ def disable_channel(conf, uuid, name):
 
 def enable_channel(conf, uuid, name):
     """
-    desativar canal no tvh
+    ativar canal no tvh
     """
     print_line("info", "ativando " + name)
     urlopen('http://%s:%s/api/idnode/save?node={"uuid":"%s","enabled":"true"}' % (
