@@ -15,35 +15,79 @@ import argparse
 import os
 import json
 
-def process_programme(pg):
+def get_category(pg):
     if "category" in pg:
         cat = []
         if isinstance(pg['category'], list):
-            # print( pg['category'] )
             for category in pg['category']:
-                cat.append(category['#text'])
+                if isinstance(category, dict):
+                    cat.append(category['#text'])
+                else:
+                    cat.append(category)
+
         else:
             cat.append(pg['category']['#text'])
-        pg["desc"]['#text'] += f"\n - Categoria: {', '.join(cat)}"
+        return f"\n - Categoria: {', '.join(cat)}"
+    return ''
 
-    if "credits" in pg and 'actor' in pg['credits']:
+
+def get_actors(pg):
+    if "credits" in pg and pg['credits'] and 'actor' in pg['credits']:
         if isinstance(pg['credits']['actor'], list):
-            pg["desc"]['#text'] += f"\n - Elenco: {', '.join(pg['credits']['actor'])}"
-        else:
-            pg["desc"]['#text'] += f"\n - Elenco: {pg['credits']['actor']}"
+            actors = []
+            for act in pg['credits']['actor']:
+                if isinstance(act, dict) and '#text' in act:
+                    actors.append(act['#text'])
+                else:
+                    actors.append(act)
+            return f"\n - Elenco: {', '.join(actors)}"
 
-    if "credits" in pg and 'director' in pg['credits']:
+        else:
+            return f"\n - Elenco: {pg['credits']['actor']}"
+    return ''
+
+def get_director(pg):
+    if "credits" in pg and pg['credits'] and 'director' in pg['credits']:
         if isinstance(pg['credits']['director'], list):
-            pg["desc"]['#text'] += f"\n - Direção: {', '.join(pg['credits']['director'])}"
+            return f"\n - Direção: {', '.join(pg['credits']['director'])}"
         else:
-            pg["desc"]['#text'] += f"\n - Direção: {pg['credits']['director']}"
+            return f"\n - Direção: {pg['credits']['director']}"
+    return ''
 
+
+def get_year(pg):
     if "date" in pg:
-        pg["desc"]['#text'] += f"\n - Produzido em: {pg['date']}"
+        return f"\n - Produzido em: {pg['date']}"
+    return ''
 
+
+def get_rating(pg):
     if "rating" in pg:
-        pg["desc"]['#text'] += f"\n - Classificação: {pg['rating']['value']}"
+        if isinstance(pg['rating'], list):
+            ratings = []
+            for r in pg['rating']:
+                ratings.append(r['value'])
+            return f"\n - Classificação: {', '.join(ratings)}"
+        else:
+            return f"\n - Classificação: {pg['rating']['value']}"
+    return ''
 
+def process_programme(pg):
+
+    if not 'desc' in pg:
+        pg["desc"] = {
+            '#text' : '',
+        }
+
+    pg["desc"]['#text'] += get_category(pg)
+
+    pg["desc"]['#text'] += get_actors(pg)
+    
+    pg["desc"]['#text'] += get_director(pg)
+    
+    pg["desc"]['#text'] += get_year(pg)
+
+    pg["desc"]['#text'] += get_rating(pg)
 
     programme = {
         "@start"  : pg["@start"],
@@ -54,6 +98,17 @@ def process_programme(pg):
     }
     return programme
 
+
+def process_channel(ch):
+    channel = {
+        '@id' : ch['display-name'][1],
+        'display-name' : {
+            '@lang' : 'en',
+            '#text' : ch['display-name'][0],
+        }
+    }
+
+    return channel
 
 
 def open_xml_file(xml_file):
@@ -72,9 +127,9 @@ def save_xml_file(data, xml_file):
 
 
 
-def print_stats(xmldata):
-    logging.info(f"Arquivo de input contém {len(xmldata['tv']['channel'])} canais")
-    logging.info(f"Arquivo de input contém {len(xmldata['tv']['programme'])} programas")
+def print_stats(xmldata, label):
+    logging.info(f"Arquivo {label} contém {len(xmldata['tv']['channel'])} canais")
+    logging.info(f"Arquivo {label} contém {len(xmldata['tv']['programme'])} programas")
 
 
 def export_to_json(xmldata):
@@ -103,13 +158,21 @@ def main():
 
     xmldata = open_xml_file(arguments.input_file)
 
-    print_stats(xmldata)
+    print_stats(xmldata, arguments.input_file)
 
     # export_to_json(xmldata)
 
+    original_channel   = xmldata['tv']['channel']
     original_programme = xmldata['tv']['programme']
 
     xmldata['tv'].pop('programme', None)
+
+    logging.info(f"Modificando channel tags")
+
+    new_channel = []
+    for chan in original_channel:
+        new_ch = process_channel(chan)
+        new_channel.append(new_ch)
 
     logging.info(f"Modificando programme tags")
 
@@ -118,10 +181,17 @@ def main():
         new_pg = process_programme(prog)
         new_programme.append(new_pg)
 
-    xmldata['tv']['programme'] = new_programme
+    new_xmldata = {
+        'tv' : {
+            'channel'   : new_channel,
+            'programme' : new_programme,
+        }
+    }
+
+    print_stats(new_xmldata, arguments.output_file)
 
     logging.info(f"Formatando XML")
-    xml_data_final = xmltodict.unparse(xmldata, pretty=True,newl="\n",indent="  ")
+    xml_data_final = xmltodict.unparse(new_xmldata, pretty=True,newl="\n",indent="  ")
 
     save_xml_file(xml_data_final, arguments.output_file)
 
