@@ -3,10 +3,10 @@
 # Instalar a lib xmltodict:
 # pip3 install xmltodict
 #
-# python3 convert.py --input-file <arquivo de origem> --output-file <arquivo de saida>
+# python3 convert.py --input-file <arquivo de origem> --output-file <arquivo de saida> --dias <qtd de dias>
 # 
 # ex:
-# python3 convert.py --input-file guide.xml --output-file novo.xml
+# python3 convert.py --input-file guide.xml --output-file novo.xml --dias 5
 #
 
 import xmltodict
@@ -78,7 +78,6 @@ def get_rating(pg):
 
 def get_sub_title(pg):
     if "sub-title" in pg:
-        # print(pg)
         if isinstance(pg['sub-title'], dict) and '#text' in pg['sub-title']:
             return f"\n - Subtítulo: {pg['sub-title']['#text']}"
     
@@ -269,7 +268,7 @@ def main():
             new_programme.append(new_pg)
         except:
             print("erro ao processar:")
-            print(prog)
+            print( json.dumps(prog, sort_keys=True, indent=4) )
 
     new_xmldata = {
         'tv' : {
