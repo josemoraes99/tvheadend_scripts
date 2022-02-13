@@ -72,7 +72,7 @@ def get_rating(pg):
             return f"\n - Classificação: {pg['rating']['value']}"
     return ''
 
-def process_programme(pg):
+def process_programme(pg, channel_ids):
 
     if not 'desc' in pg:
         pg["desc"] = {
@@ -92,23 +92,39 @@ def process_programme(pg):
     programme = {
         "@start"  : pg["@start"],
         "@stop"   : pg["@stop"],
-        "@channel": pg["@channel"],
+        "@channel": replace_channel_id(pg["@channel"], channel_ids),
         "title"   : pg["title"],
         "desc"    : pg["desc"],
     }
     return programme
 
+def replace_channel_id(channel, ids):
+    for c in ids:
+        if c['old_id'] == channel:
+            return c['new_id']
+    return ''
+
+def get_channels_ids(ch):
+    new_ids = []
+    for channel in ch:
+        new_ids.append({
+            'old_id' : channel['@id'],
+            'new_id' : channel['display-name'][1],
+            'name'   : channel['display-name'][0],
+            })
+    return new_ids
+
 
 def process_channel(ch):
     channel = {
-        '@id' : ch['display-name'][1],
+        '@id' : ch['new_id'],
         'display-name' : {
             '@lang' : 'en',
-            '#text' : ch['display-name'][0],
+            '#text' : ch['name'],
         }
     }
-
     return channel
+
 
 
 def open_xml_file(xml_file):
@@ -169,8 +185,10 @@ def main():
 
     logging.info(f"Modificando channel tags")
 
+    new_channel_id = get_channels_ids(original_channel)
+
     new_channel = []
-    for chan in original_channel:
+    for chan in new_channel_id:
         new_ch = process_channel(chan)
         new_channel.append(new_ch)
 
@@ -178,7 +196,7 @@ def main():
 
     new_programme = []
     for prog in original_programme:
-        new_pg = process_programme(prog)
+        new_pg = process_programme(prog, new_channel_id)
         new_programme.append(new_pg)
 
     new_xmldata = {
@@ -195,7 +213,7 @@ def main():
 
     save_xml_file(xml_data_final, arguments.output_file)
 
-
+# modificar a tag channel do programa com a nova tag
 
 if __name__ == "__main__":
     main()
