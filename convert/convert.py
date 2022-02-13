@@ -14,6 +14,7 @@ import logging
 import argparse
 import os
 import json
+import re
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -85,18 +86,34 @@ def get_sub_title(pg):
 
     return ''
 
+
 def get_episode(pg):
     if "episode-num" in pg:
+        episode = ''
         if isinstance(pg['episode-num'], dict) and '#text' in pg['episode-num']:
-            return f"\n - Episódio: {pg['episode-num']['#text']}"
-        for ep in pg['episode-num']:
-            if ep['@system'] == "onscreen":
-                return f"\n - Episódio: {ep['#text']}"
+            episode = pg['episode-num']['#text']
+        else:
+            for ep in pg['episode-num']:
+                if ep['@system'] == "onscreen":
+                    episode = ep['#text']
 
-    return ''
+        return episode if match_episode(episode) else False
+    return False
+
+
+def match_episode(ep):
+    regex = r"(.*?)(S\d{1,3}E\d{1,3})"
+    for match in re.finditer(regex, ep):
+        return True
+
+    return False
 
 
 def process_programme(pg, channel_ids):
+
+    episode_number = get_episode(pg)
+    if episode_number:
+        pg["title"] += f" {episode_number}"
 
     if not 'desc' in pg:
         pg["desc"] = {
@@ -105,8 +122,6 @@ def process_programme(pg, channel_ids):
 
     pg["desc"]['#text'] += get_sub_title(pg)
 
-    pg["desc"]['#text'] += get_episode(pg)
-  
     pg["desc"]['#text'] += get_category(pg)
 
     pg["desc"]['#text'] += get_actors(pg)
@@ -183,21 +198,15 @@ def export_to_json(xmldata):
 
 
 def today_date():
-    # date_time_str = '20220215000000 +0000'
-    # date_time_obj = datetime.strptime(date_time_str, '%Y%m%d%H%M%S %z')
-    # return date_time_obj
-    # return datetime.now(timezone.utc)
     return datetime.now(timezone.utc).astimezone()
 
 def check_date_range(prog, today, dias):
     program_start = datetime.strptime(prog["@start"], '%Y%m%d%H%M%S %z')
     datelimit = today + timedelta(days = dias )
 
-    # if program_start.replace(tzinfo=None) < today.replace(tzinfo=None):
     if program_start < today:
         return False
 
-    # if program_start.replace(tzinfo=None) < datelimit.replace(tzinfo=None):
     if program_start < datelimit:
         return True
 
@@ -255,8 +264,12 @@ def main():
         if dias and not check_date_range(prog, today, dias):
             continue
 
-        new_pg = process_programme(prog, new_channel_id)
-        new_programme.append(new_pg)
+        try:
+            new_pg = process_programme(prog, new_channel_id)
+            new_programme.append(new_pg)
+        except:
+            print("erro ao processar:")
+            print(prog)
 
     new_xmldata = {
         'tv' : {
@@ -272,7 +285,6 @@ def main():
 
     save_xml_file(xml_data_final, arguments.output_file)
 
-# modificar a tag channel do programa com a nova tag
 
 if __name__ == "__main__":
     main()
