@@ -101,7 +101,7 @@ def get_episode(pg):
 
 
 def match_episode(ep):
-    regex = r"(.*?)(S\d{1,3}E\d{1,3})"
+    regex = r"(.*?)(S\d{1,3}.*?E\d{1,3})"
     for match in re.finditer(regex, ep):
         return True
 
