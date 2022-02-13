@@ -14,6 +14,9 @@ import logging
 import argparse
 import os
 import json
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 
 def get_category(pg):
     if "category" in pg:
@@ -72,6 +75,27 @@ def get_rating(pg):
             return f"\n - Classificação: {pg['rating']['value']}"
     return ''
 
+def get_sub_title(pg):
+    if "sub-title" in pg:
+        # print(pg)
+        if isinstance(pg['sub-title'], dict) and '#text' in pg['sub-title']:
+            return f"\n - Subtítulo: {pg['sub-title']['#text']}"
+    
+        return f"\n - Subtítulo: {pg['sub-title']}"
+
+    return ''
+
+def get_episode(pg):
+    if "episode-num" in pg:
+        if isinstance(pg['episode-num'], dict) and '#text' in pg['episode-num']:
+            return f"\n - Episódio: {pg['episode-num']['#text']}"
+        for ep in pg['episode-num']:
+            if ep['@system'] == "onscreen":
+                return f"\n - Episódio: {ep['#text']}"
+
+    return ''
+
+
 def process_programme(pg, channel_ids):
 
     if not 'desc' in pg:
@@ -79,6 +103,10 @@ def process_programme(pg, channel_ids):
             '#text' : '',
         }
 
+    pg["desc"]['#text'] += get_sub_title(pg)
+
+    pg["desc"]['#text'] += get_episode(pg)
+  
     pg["desc"]['#text'] += get_category(pg)
 
     pg["desc"]['#text'] += get_actors(pg)
@@ -154,6 +182,27 @@ def export_to_json(xmldata):
         json.dump(xmldata, fp,  indent=4)
 
 
+def today_date():
+    # date_time_str = '20220215000000 +0000'
+    # date_time_obj = datetime.strptime(date_time_str, '%Y%m%d%H%M%S %z')
+    # return date_time_obj
+    # return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc).astimezone()
+
+def check_date_range(prog, today, dias):
+    program_start = datetime.strptime(prog["@start"], '%Y%m%d%H%M%S %z')
+    datelimit = today + timedelta(days = dias )
+
+    # if program_start.replace(tzinfo=None) < today.replace(tzinfo=None):
+    if program_start < today:
+        return False
+
+    # if program_start.replace(tzinfo=None) < datelimit.replace(tzinfo=None):
+    if program_start < datelimit:
+        return True
+
+    return False
+
 
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
@@ -165,7 +214,13 @@ def main():
     parser.add_argument('--output-file', action = 'store', dest = 'output_file', required = True,
                            help = 'Arquivo xml de saída')
 
+    parser.add_argument('--dias', type=int, choices=range(1, 20), required = False, nargs="?", const=0, help = 'Limite de dias')
+
     arguments = parser.parse_args()
+
+    dias = arguments.dias #1
+
+    today = today_date()
 
     if not os.path.exists(arguments.input_file):
         logging.info(f"Arquivo de origem não encontrado")
@@ -196,6 +251,10 @@ def main():
 
     new_programme = []
     for prog in original_programme:
+
+        if dias and not check_date_range(prog, today, dias):
+            continue
+
         new_pg = process_programme(prog, new_channel_id)
         new_programme.append(new_pg)
 
