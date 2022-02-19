@@ -15,6 +15,9 @@ import argparse
 import os
 import json
 import re
+import unicodedata
+import hashlib
+import math
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -108,11 +111,19 @@ def match_episode(ep):
     return False
 
 
+def format_channel_name(ch):
+    return re.sub(re.compile('\W'), '', ''.join(c.upper() for c in unicodedata.normalize(
+        'NFKD', ch.replace("+", "mais")).encode('ascii', 'ignore').decode('utf8') if not c.isspace()))
+
+
 def process_programme(pg, channel_ids):
 
     episode_number = get_episode(pg)
     if episode_number:
-        pg["title"] += f" {episode_number}"
+        if isinstance(pg['title'], dict) and '#text' in pg['title']:
+            pg['title']['#text'] += f" {episode_number}"
+        else:
+            pg["title"] += f" {episode_number}"
 
     if not 'desc' in pg:
         pg["desc"] = {
@@ -149,12 +160,32 @@ def replace_channel_id(channel, ids):
 def get_channels_ids(ch):
     new_ids = []
     for channel in ch:
+        if isinstance(channel['display-name'], dict) and '#text' in channel['display-name']:
+            channel_name = channel['display-name']['#text']
+            channel_id = format_channel_name(channel_name)
+        else:
+            channel_name = channel['display-name']
+            channel_id = format_channel_name(channel_name)
+
         new_ids.append({
             'old_id' : channel['@id'],
-            'new_id' : channel['display-name'][1],
-            'name'   : channel['display-name'][0],
+            'new_id' : channel_id,
+            'name'   : channel_name,
             })
-    return new_ids
+
+    # remove duplicates
+    seen = set()
+    new_l = []
+    for d in new_ids:
+        t = tuple(d.items())
+        if t not in seen:
+            seen.add(t)
+            new_l.append(d)
+
+    # sort
+    sorted_ids = sorted(new_l, key=lambda d: d['new_id'])
+
+    return sorted_ids
 
 
 def process_channel(ch):
@@ -183,6 +214,19 @@ def save_xml_file(data, xml_file):
     with open(xml_file, 'w') as result_file:
         result_file.write(data)
 
+def convert_size(size_bytes):
+   if size_bytes == 0:
+       return "0B"
+   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+   i = int(math.floor(math.log(size_bytes, 1024)))
+   p = math.pow(1024, i)
+   s = round(size_bytes / p, 2)
+   return "%s %s" % (s, size_name[i])
+
+
+def print_file_size(file):
+    size = convert_size(os.path.getsize(file))
+    logging.info(f"Arquivo {file} - {size}")
 
 
 def print_stats(xmldata, label):
@@ -212,6 +256,7 @@ def check_date_range(prog, today, dias):
     return False
 
 
+
 def main():
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
@@ -223,6 +268,8 @@ def main():
                            help = 'Arquivo xml de saída')
 
     parser.add_argument('--dias', type=int, choices=range(1, 20), required = False, nargs="?", const=0, help = 'Limite de dias')
+
+    # parser.add_argument('--remove-duplicate', action='store_true', required = False, help = 'Remover programas duplicados')
 
     arguments = parser.parse_args()
 
@@ -237,8 +284,11 @@ def main():
 
     xmldata = open_xml_file(arguments.input_file)
 
+    print_file_size(arguments.input_file)
+
     print_stats(xmldata, arguments.input_file)
 
+    # gerar json
     # export_to_json(xmldata)
 
     original_channel   = xmldata['tv']['channel']
@@ -258,6 +308,8 @@ def main():
     logging.info(f"Modificando programme tags")
 
     new_programme = []
+    programme_hash = set()
+
     for prog in original_programme:
 
         if dias and not check_date_range(prog, today, dias):
@@ -265,10 +317,19 @@ def main():
 
         try:
             new_pg = process_programme(prog, new_channel_id)
-            new_programme.append(new_pg)
-        except:
+            prog_hash = hashlib.md5(f"{new_pg['@start']} {new_pg['@stop']} {new_pg['@channel']}".encode('utf-8')).hexdigest()
+
+            if not prog_hash in programme_hash:
+
+                new_programme.append(new_pg)
+                programme_hash.add(prog_hash)
+
+
+        except Exception as e:
+            print(e)
             print("erro ao processar:")
             print( json.dumps(prog, sort_keys=True, indent=4) )
+
 
     new_xmldata = {
         'tv' : {
@@ -283,6 +344,8 @@ def main():
     xml_data_final = xmltodict.unparse(new_xmldata, pretty=True,newl="\n",indent="  ")
 
     save_xml_file(xml_data_final, arguments.output_file)
+
+    print_file_size(arguments.output_file)
 
 
 if __name__ == "__main__":
